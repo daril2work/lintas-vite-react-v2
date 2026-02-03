@@ -4,7 +4,7 @@ import { api } from '../services/api';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
-import { PackageSearch, Camera, History, AlertCircle, Trash2, CheckCircle2, AlertTriangle, Box } from 'lucide-react';
+import { PackageSearch, Camera, History, AlertCircle, Trash2, CheckCircle2, AlertTriangle, Box, X } from 'lucide-react';
 import { cn } from '../utils/cn';
 import type { ToolSet } from '../types';
 
@@ -12,11 +12,17 @@ interface BasketItem extends ToolSet {
     condition: 'good' | 'damaged';
     photoCaptured: boolean;
     photoUrl?: string;
+    origin?: string;
 }
+
+const DEPARTMENTS = ['IGD', 'OK (Bedah)', 'Poli Gigi', 'Poli Umum', 'ICU', 'Radiologi'];
 
 export const IntakePage = () => {
     const [search, setSearch] = useState('');
     const [basket, setBasket] = useState<BasketItem[]>([]);
+    const [isDeliveryModalOpen, setIsDeliveryModalOpen] = useState(false);
+    const [selectedOrigin, setSelectedOrigin] = useState(DEPARTMENTS[0]);
+    const [selectedTools, setSelectedTools] = useState<string[]>([]);
     const queryClient = useQueryClient();
 
     const { data: inventory, isLoading } = useQuery({
@@ -30,7 +36,7 @@ export const IntakePage = () => {
                 await api.updateToolStatus(item.id, 'dirty');
                 await api.addLog({
                     toolSetId: item.id,
-                    action: `Penerimaan - Kondisi: ${item.condition === 'good' ? 'Lengkap' : 'Rusak'}`,
+                    action: `Penerimaan dari ${item.origin || 'Unit'} - Kondisi: ${item.condition === 'good' ? 'Lengkap' : 'Rusak'}`,
                     operatorId: '1', // Hardcoded for simulation
                     notes: item.condition === 'damaged' ? 'Alat dilaporkan bermasalah saat diterima.' : undefined,
                     photo: item.photoUrl
@@ -44,9 +50,22 @@ export const IntakePage = () => {
         },
     });
 
-    const addToBasket = (item: ToolSet) => {
+    const addToBasket = (item: ToolSet, origin?: string) => {
         if (basket.find(v => v.id === item.id)) return;
-        setBasket([...basket, { ...item, condition: 'good', photoCaptured: false }]);
+        setBasket([...basket, { ...item, condition: 'good', photoCaptured: false, origin }]);
+    };
+
+    const handleBatchTransfer = () => {
+        const toolsToMove = availableItems.filter(item => selectedTools.includes(item.id));
+        const newBasketItems: BasketItem[] = toolsToMove.map(item => ({
+            ...item,
+            condition: 'good',
+            photoCaptured: false,
+            origin: selectedOrigin
+        }));
+        setBasket([...basket, ...newBasketItems]);
+        setSelectedTools([]);
+        setIsDeliveryModalOpen(false);
     };
 
     const removeFromBasket = (id: string) => {
@@ -81,9 +100,13 @@ export const IntakePage = () => {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-3xl text-slate-900">Penerimaan Alat</h1>
-                    <p className="text-slate-500 mt-1">Scan atau pilih alat kotor dari unit untuk dimasukkan ke keranjang.</p>
+                    <p className="text-slate-500 mt-1">Kelola serah terima alat kotor dari ruangan ke CSSD.</p>
                 </div>
                 <div className="flex gap-3">
+                    <Button variant="accent" className="gap-2" onClick={() => setIsDeliveryModalOpen(true)}>
+                        <Box size={18} />
+                        Input Pengiriman Ruangan
+                    </Button>
                     <Button variant="secondary" className="gap-2">
                         <History size={18} />
                         History
@@ -138,7 +161,7 @@ export const IntakePage = () => {
                                 ))
                             ) : (
                                 <div className="text-center py-12 bg-white rounded-3xl border border-dashed border-slate-200">
-                                    <p className="text-slate-400 italic text-sm">Cari alat untuk mulai...</p>
+                                    <p className="text-slate-400 italic text-sm">Cari alat atau pilih dari tombol 'Input Pengiriman Ruangan'</p>
                                 </div>
                             )}
                         </div>
@@ -165,7 +188,14 @@ export const IntakePage = () => {
                                 <div key={item.id} className="p-4 bg-slate-800/50 rounded-2xl border border-slate-700/50 space-y-4">
                                     <div className="flex justify-between items-start">
                                         <div className="overflow-hidden">
-                                            <p className="text-xs font-bold truncate">{item.name}</p>
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <p className="text-xs font-bold truncate">{item.name}</p>
+                                                {item.origin && (
+                                                    <span className="px-1.5 py-0.5 rounded-md bg-accent-indigo/20 text-accent-indigo text-[8px] font-black uppercase">
+                                                        {item.origin}
+                                                    </span>
+                                                )}
+                                            </div>
                                             <p className="text-[10px] text-slate-500 font-mono italic">#{item.barcode}</p>
                                         </div>
                                         <input
@@ -258,6 +288,98 @@ export const IntakePage = () => {
                     </Card>
                 </div>
             </div>
+            {/* Modal Input Pengiriman Ruangan */}
+            {isDeliveryModalOpen && (
+                <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <Card className="w-full max-w-2xl shadow-2xl animate-in zoom-in-95 duration-200">
+                        <div className="flex items-center justify-between mb-6">
+                            <div>
+                                <h3 className="text-xl font-black text-slate-900">Input Pengiriman dari Ruangan</h3>
+                                <p className="text-xs text-slate-500 mt-1">Pilih ruangan asal dan daftar alat yang dikirim.</p>
+                            </div>
+                            <button onClick={() => setIsDeliveryModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400">
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <div className="space-y-6">
+                            <div className="space-y-2">
+                                <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest ml-1">Ruangan Asal</label>
+                                <div className="flex flex-wrap gap-2">
+                                    {DEPARTMENTS.map(dept => (
+                                        <button
+                                            key={dept}
+                                            onClick={() => setSelectedOrigin(dept)}
+                                            className={cn(
+                                                "px-4 py-2 rounded-xl text-xs font-bold transition-all border",
+                                                selectedOrigin === dept
+                                                    ? "bg-accent-indigo border-accent-indigo text-white shadow-lg shadow-accent-indigo/20"
+                                                    : "bg-slate-50 border-slate-100 text-slate-500 hover:border-slate-300"
+                                            )}
+                                        >
+                                            {dept}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest ml-1">Pilih Alat (Inventory/Distributed)</label>
+                                <div className="max-h-[300px] overflow-y-auto border border-slate-100 rounded-2xl divide-y divide-slate-50">
+                                    {availableItems.length > 0 ? availableItems.map(item => (
+                                        <div
+                                            key={item.id}
+                                            className={cn(
+                                                "p-4 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors",
+                                                selectedTools.includes(item.id) ? "bg-accent-indigo/5" : ""
+                                            )}
+                                            onClick={() => {
+                                                setSelectedTools(prev =>
+                                                    prev.includes(item.id) ? prev.filter(id => id !== item.id) : [...prev, item.id]
+                                                );
+                                            }}
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <div className={cn(
+                                                    "w-10 h-10 rounded-xl flex items-center justify-center font-bold text-xs transition-colors",
+                                                    selectedTools.includes(item.id) ? "bg-accent-indigo text-white" : "bg-slate-100 text-slate-400"
+                                                )}>
+                                                    <Box size={18} />
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm font-bold text-slate-900">{item.name}</p>
+                                                    <p className="text-[10px] font-mono text-slate-400 font-bold uppercase">{item.barcode}</p>
+                                                </div>
+                                            </div>
+                                            <div className={cn(
+                                                "w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all",
+                                                selectedTools.includes(item.id) ? "border-accent-indigo bg-accent-indigo text-white" : "border-slate-200"
+                                            )}>
+                                                {selectedTools.includes(item.id) && <CheckCircle2 size={14} />}
+                                            </div>
+                                        </div>
+                                    )) : (
+                                        <div className="p-8 text-center text-slate-400 text-xs italic">
+                                            Tidak ada alat tersedia untuk dipilih.
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="pt-4 flex gap-3">
+                                <Button variant="secondary" className="flex-1" onClick={() => setIsDeliveryModalOpen(false)}>Batal</Button>
+                                <Button
+                                    className="flex-1"
+                                    disabled={selectedTools.length === 0}
+                                    onClick={handleBatchTransfer}
+                                >
+                                    Pindahkan ke Keranjang ({selectedTools.length})
+                                </Button>
+                            </div>
+                        </div>
+                    </Card>
+                </div>
+            )}
         </div>
     );
 };

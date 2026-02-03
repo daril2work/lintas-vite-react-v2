@@ -8,25 +8,60 @@ import {
     BarChart2,
     Database,
     X,
-    User
+    Send,
+    ClipboardCheck,
+    User,
+    ChevronDown,
+    ChevronRight
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { useUIStore } from '../../store';
+import { useState } from 'react';
 
-const menuItems = [
-    { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
-    { icon: PackageSearch, label: 'Penerimaan', path: '/intake' },
-    { icon: Waves, label: 'Pencucian', path: '/washing' },
-    { icon: Box, label: 'Pengepakan', path: '/packing' },
-    { icon: Settings, label: 'Sterilisasi', path: '/sterilizing' },
-    { icon: Truck, label: 'Distribusi', path: '/distribution' },
-    { divider: true },
-    { icon: Database, label: 'Master Data', path: '/admin' },
-    { icon: BarChart2, label: 'Laporan', path: '/reports' },
+const MENU_SECTIONS = [
+    {
+        id: 'utama',
+        header: 'UTAMA',
+        items: [
+            { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
+        ]
+    },
+    {
+        id: 'aktivitas',
+        header: 'AKTIVITAS CSSD',
+        items: [
+            { icon: PackageSearch, label: 'Penerimaan', path: '/intake' },
+            { icon: Waves, label: 'Pencucian', path: '/washing' },
+            { icon: Box, label: 'Pengepakan', path: '/packing' },
+            { icon: Settings, label: 'Sterilisasi', path: '/sterilizing' },
+            { icon: Truck, label: 'Distribusi', path: '/distribution' },
+        ]
+    },
+    {
+        id: 'ruangan',
+        header: 'RUANGAN / UNIT',
+        items: [
+            { icon: Send, label: 'Kirim Alat Kotor', path: '/ward/send' },
+            { icon: ClipboardCheck, label: 'Terima Distribusi', path: '/ward/receive' },
+        ]
+    },
+    {
+        id: 'backoffice',
+        header: 'BACKOFFICE',
+        items: [
+            { icon: Database, label: 'Master Data', path: '/admin' },
+            { icon: BarChart2, label: 'Laporan', path: '/reports' },
+        ]
+    },
 ];
 
 export const Sidebar = () => {
     const { isSidebarOpen, toggleSidebar } = useUIStore();
+    const [activeSection, setActiveSection] = useState<string | null>('aktivitas'); // Default open section
+
+    const toggleSection = (id: string) => {
+        setActiveSection(prev => prev === id ? null : id);
+    };
 
     return (
         <aside
@@ -45,21 +80,45 @@ export const Sidebar = () => {
                 </button>
             </div>
 
-            <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
-                {menuItems.map((item, index) => {
-                    if (item.divider) return <div key={index} className="my-6 border-t border-slate-800 lg:mx-4" />;
-                    if (!item.icon) return null;
+            <nav className="flex-1 px-4 py-4 space-y-2 overflow-y-auto custom-scrollbar">
+                {MENU_SECTIONS.map((section) => {
+                    const isOpen = activeSection === section.id;
 
-                    const Icon = item.icon;
                     return (
-                        <a
-                            key={item.label}
-                            href={item.path}
-                            className="flex items-center gap-4 px-4 py-3.5 rounded-2xl text-slate-400 hover:text-white hover:bg-slate-800 transition-all group"
-                        >
-                            <Icon size={22} className="group-hover:text-accent-indigo transition-colors" />
-                            <span className="font-semibold">{item.label}</span>
-                        </a>
+                        <div key={section.id} className="space-y-1">
+                            <button
+                                onClick={() => toggleSection(section.id)}
+                                className="w-full flex items-center justify-between px-4 py-3 rounded-xl hover:bg-slate-800 transition-all group"
+                            >
+                                <span className="text-[10px] font-black tracking-[0.2em] text-slate-500 uppercase group-hover:text-slate-300 transition-colors">
+                                    {section.header}
+                                </span>
+                                {isOpen ? (
+                                    <ChevronDown size={14} className="text-slate-600 group-hover:text-slate-400" />
+                                ) : (
+                                    <ChevronRight size={14} className="text-slate-600 group-hover:text-slate-400" />
+                                )}
+                            </button>
+
+                            <div className={cn(
+                                "space-y-1 overflow-hidden transition-all duration-300 ease-in-out",
+                                isOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0 pointer-events-none"
+                            )}>
+                                {section.items.map((item) => {
+                                    const Icon = item.icon;
+                                    return (
+                                        <a
+                                            key={item.label}
+                                            href={item.path}
+                                            className="flex items-center gap-4 px-4 py-3 rounded-2xl text-slate-400 hover:text-white hover:bg-slate-800 transition-all group"
+                                        >
+                                            <Icon size={20} className="group-hover:text-accent-indigo transition-colors" />
+                                            <span className="text-sm font-semibold">{item.label}</span>
+                                        </a>
+                                    );
+                                })}
+                            </div>
+                        </div>
                     );
                 })}
             </nav>

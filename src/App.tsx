@@ -8,6 +8,8 @@ import { SterilizingPage } from './pages/SterilizingPage';
 import { DistributionPage } from './pages/DistributionPage';
 import { MasterDataPage } from './pages/MasterDataPage';
 import { ReportsPage } from './pages/ReportsPage';
+import { WardSendPage } from './pages/WardSendPage';
+import { WardReceivePage } from './pages/WardReceivePage';
 
 function App() {
   return (
@@ -20,6 +22,8 @@ function App() {
           <Route path="/packing" element={<PackingPage />} />
           <Route path="/sterilizing" element={<SterilizingPage />} />
           <Route path="/distribution" element={<DistributionPage />} />
+          <Route path="/ward/send" element={<WardSendPage />} />
+          <Route path="/ward/receive" element={<WardReceivePage />} />
           <Route path="/admin" element={<MasterDataPage />} />
           <Route path="/reports" element={<ReportsPage />} />
         </Route>
