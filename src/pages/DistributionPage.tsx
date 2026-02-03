@@ -13,24 +13,26 @@ export const DistributionPage = () => {
     const [selectedStaff, setSelectedStaff] = useState('');
     const [showSignature, setShowSignature] = useState(false);
     const [activeTab, setActiveTab] = useState<'ready' | 'requests'>('ready');
+    const [verificationMethod, setVerificationMethod] = useState<'signature' | 'photo'>('signature');
+    const [photoEvidence, setPhotoEvidence] = useState<string | null>(null);
 
-    const { data: inventory } = useQuery({
-        queryKey: ['inventory'],
-        queryFn: api.getInventory,
-    });
-
-    const { data: requests } = useQuery({
-        queryKey: ['requests'],
-        queryFn: api.getRequests,
-    });
-
-    const { data: staffList } = useQuery({
-        queryKey: ['staff'],
-        queryFn: api.getStaff,
-    });
+    const { data: inventory } = useQuery({ queryKey: ['inventory'], queryFn: api.getInventory });
+    const { data: requests } = useQuery({ queryKey: ['requests'], queryFn: api.getRequests });
+    const { data: staffList } = useQuery({ queryKey: ['staff'], queryFn: api.getStaff });
 
     const sterileItems = inventory?.filter(item => item.status === 'sterile') || [];
     const pendingRequests = requests?.filter(r => r.status === 'pending') || [];
+
+    const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setPhotoEvidence(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
 
     const distributeMutation = useMutation({
         mutationFn: async (id: string) => {
@@ -41,7 +43,8 @@ export const DistributionPage = () => {
                 toolSetId: id,
                 action: 'Distribution',
                 operatorId: 'system-admin', // Should be logged-in user
-                notes: `Distributed to ${selectedStaff}. ${activeTab === 'requests' ? 'Fulfilled request.' : ''}`
+                notes: `Distributed to ${selectedStaff}. ${activeTab === 'requests' ? 'Fulfilled request.' : ''}`,
+                evidence: verificationMethod === 'photo' ? (photoEvidence ?? undefined) : 'Digital Signature'
             });
 
             if (activeTab === 'requests' && selectedRequest) {
@@ -56,6 +59,7 @@ export const DistributionPage = () => {
             setSelectedRequest(null);
             setSelectedStaff('');
             setShowSignature(false);
+            setPhotoEvidence(null);
         },
     });
 
@@ -73,11 +77,13 @@ export const DistributionPage = () => {
 
     return (
         <div className="space-y-8">
+            {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-3xl text-slate-900">Distribusi Alat</h1>
                     <p className="text-slate-500 mt-1">Serah terima alat steril ke unit pelayanan.</p>
                 </div>
+                {/* ... (Tabs) ... */}
                 <div className="flex gap-4">
                     <button
                         onClick={() => setActiveTab('ready')}
@@ -110,7 +116,9 @@ export const DistributionPage = () => {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Left Column (Lists) */}
                 <div className="lg:col-span-2 space-y-6">
+                    {/* ... (Existing List Logic) ... */}
                     {activeTab === 'requests' ? (
                         <>
                             <h4 className="text-xs font-bold uppercase tracking-widest text-slate-400">Daftar Permintaan dari Unit</h4>
@@ -266,6 +274,7 @@ export const DistributionPage = () => {
                     )}
                 </div>
 
+                {/* Right Column (Handover Form) */}
                 <div className="space-y-6">
                     <Card className="bg-white shadow-xl">
                         <h4 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-6 flex items-center gap-2">
@@ -308,25 +317,76 @@ export const DistributionPage = () => {
                                     onClick={() => setShowSignature(true)}
                                 >
                                     <UserCheck size={20} />
-                                    Siapkan Tanda Tangan
+                                    Verifikasi Serah Terima
                                 </Button>
                             ) : (
                                 <div className="space-y-4 animate-in fade-in zoom-in-95 duration-300">
-                                    <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 block">Digital Signature</label>
-                                    <div className="aspect-video bg-slate-50 border-2 border-dashed border-slate-300 rounded-2xl flex flex-col items-center justify-center text-slate-300 relative group overflow-hidden">
-                                        <PenTool size={32} className="group-hover:scale-110 transition-transform" />
-                                        <span className="text-[10px] mt-2 font-bold uppercase">Sign Here</span>
-                                        <div className="absolute inset-0 bg-white/20 opacity-0 active:opacity-100 transition-opacity flex items-center justify-center cursor-crosshair">
-                                            <span className="text-slate-900 font-serif italic text-2xl">Accepted</span>
-                                        </div>
+                                    <div className="flex p-1 bg-slate-100 rounded-lg">
+                                        <button
+                                            className={cn("flex-1 py-1.5 text-xs font-bold rounded-md transition-all", verificationMethod === 'signature' ? "bg-white shadow-sm text-slate-900" : "text-slate-400 hover:text-slate-600")}
+                                            onClick={() => setVerificationMethod('signature')}
+                                        >
+                                            Digital Sign
+                                        </button>
+                                        <button
+                                            className={cn("flex-1 py-1.5 text-xs font-bold rounded-md transition-all", verificationMethod === 'photo' ? "bg-white shadow-sm text-slate-900" : "text-slate-400 hover:text-slate-600")}
+                                            onClick={() => setVerificationMethod('photo')}
+                                        >
+                                            Upload Foto
+                                        </button>
                                     </div>
+
+                                    {verificationMethod === 'signature' ? (
+                                        <div className="aspect-video bg-slate-50 border-2 border-dashed border-slate-300 rounded-2xl flex flex-col items-center justify-center text-slate-300 relative group overflow-hidden">
+                                            <PenTool size={32} className="group-hover:scale-110 transition-transform" />
+                                            <span className="text-[10px] mt-2 font-bold uppercase">Sign Here</span>
+                                            <div className="absolute inset-0 bg-white/20 opacity-0 active:opacity-100 transition-opacity flex items-center justify-center cursor-crosshair">
+                                                <span className="text-slate-900 font-serif italic text-2xl">Accepted</span>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-3">
+                                            <div className="relative aspect-video bg-slate-50 border-2 border-dashed border-slate-300 rounded-2xl flex flex-col items-center justify-center overflow-hidden">
+                                                {photoEvidence ? (
+                                                    <img src={photoEvidence} alt="Bukti Serah Terima" className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <div className="text-center p-4">
+                                                        <input
+                                                            type="file"
+                                                            accept="image/*"
+                                                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                                            onChange={handlePhotoUpload}
+                                                        />
+                                                        <div className="flex flex-col items-center gap-2 text-slate-400">
+                                                            <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center">
+                                                                <Truck size={20} />
+                                                            </div>
+                                                            <span className="text-[10px] font-bold uppercase">Upload / Ambil Foto</span>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                {photoEvidence && (
+                                                    <button
+                                                        onClick={() => setPhotoEvidence(null)}
+                                                        className="absolute top-2 right-2 bg-black/50 text-white p-1 rounded-full hover:bg-black/70"
+                                                    >
+                                                        <AlertCircle size={14} />
+                                                    </button>
+                                                )}
+                                            </div>
+                                            <p className="text-[10px] text-slate-400 text-center">
+                                                Ambil foto alat yang diserahterimakan sebagai bukti validasi.
+                                            </p>
+                                        </div>
+                                    )}
+
                                     <div className="flex gap-2">
-                                        <Button variant="ghost" size="sm" onClick={() => setShowSignature(false)} className="flex-1">Batal</Button>
+                                        <Button variant="ghost" size="sm" onClick={() => { setShowSignature(false); setPhotoEvidence(null); }} className="flex-1">Batal</Button>
                                         <Button
                                             size="sm"
                                             className="bg-accent-emerald text-white flex-1 shadow-lg shadow-accent-emerald/20"
                                             onClick={() => distributeMutation.mutate(selectedItem!)}
-                                            disabled={distributeMutation.isPending}
+                                            disabled={distributeMutation.isPending || (verificationMethod === 'photo' && !photoEvidence)}
                                         >
                                             {distributeMutation.isPending ? 'Mengirim...' : 'Konfirmasi & Kirim'}
                                         </Button>

@@ -32,6 +32,16 @@ export const api = {
         return storage.get<Staff[]>(KEYS.STAFF) || INITIAL_DATA.STAFF;
     },
 
+    createStaff: async (staff: Omit<Staff, 'id'>): Promise<void> => {
+        await delay();
+        const items = storage.get<Staff[]>(KEYS.STAFF) || INITIAL_DATA.STAFF;
+        const newStaff: Staff = {
+            ...staff,
+            id: Math.random().toString(36).substr(2, 9),
+        };
+        storage.set(KEYS.STAFF, [newStaff, ...items]);
+    },
+
     // Inventory
     getInventory: async (): Promise<ToolSet[]> => {
         await delay();
@@ -56,10 +66,35 @@ export const api = {
         storage.set(KEYS.INVENTORY, [newTool, ...items]);
     },
 
+    updateTool: async (id: string, updates: Partial<Omit<ToolSet, 'id'>>): Promise<void> => {
+        await delay();
+        const items = storage.get<ToolSet[]>(KEYS.INVENTORY) || INITIAL_DATA.INVENTORY;
+        const updated = items.map(item => item.id === id ? { ...item, ...updates } : item);
+        storage.set(KEYS.INVENTORY, updated);
+    },
+
+    deleteTool: async (id: string): Promise<void> => {
+        await delay();
+        const items = storage.get<ToolSet[]>(KEYS.INVENTORY) || INITIAL_DATA.INVENTORY;
+        const filtered = items.filter(item => item.id !== id);
+        storage.set(KEYS.INVENTORY, filtered);
+    },
+
     // Machines
     getMachines: async (): Promise<Machine[]> => {
         await delay();
         return storage.get<Machine[]>(KEYS.MACHINES) || INITIAL_DATA.MACHINES;
+    },
+
+    createMachine: async (machine: Omit<Machine, 'id' | 'status'>): Promise<void> => {
+        await delay();
+        const items = storage.get<Machine[]>(KEYS.MACHINES) || INITIAL_DATA.MACHINES;
+        const newMachine: Machine = {
+            ...machine,
+            id: Math.random().toString(36).substr(2, 9),
+            status: 'idle',
+        };
+        storage.set(KEYS.MACHINES, [newMachine, ...items]);
     },
 
     // Logs

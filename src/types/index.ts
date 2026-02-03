@@ -33,6 +33,7 @@ export interface WorkflowLog {
     timestamp: string;
     notes?: string;
     photo?: string;
+    evidence?: string;
 }
 
 export interface ToolRequest {

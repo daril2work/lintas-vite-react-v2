@@ -4,7 +4,7 @@ import { api } from '../services/api';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
-import { Users, Database, Settings, Plus, Search, MoreVertical, Edit2, Trash2, X } from 'lucide-react';
+import { Users, Database, Settings, Plus, Search, MoreVertical, Edit2, Trash2, X, ChevronRight, PackageCheck, Box } from 'lucide-react';
 import { cn } from '../utils/cn';
 
 type TabType = 'staff' | 'inventory' | 'machines';
@@ -12,7 +12,22 @@ type TabType = 'staff' | 'inventory' | 'machines';
 export const MasterDataPage = () => {
     const [activeTab, setActiveTab] = useState<TabType>('staff');
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [formData, setFormData] = useState({ name: '', barcode: '', category: 'Bedah' });
+    const [formData, setFormData] = useState({
+        name: '',
+        barcode: '',
+        category: 'Bedah',
+        quantity: 1,
+        // Staff fields
+        employeeId: '',
+        department: 'CSSD',
+        role: 'operator',
+        // Machine fields
+        type: 'washer'
+    });
+
+    // Edit & delete states
+    const [editingItem, setEditingItem] = useState<any>(null);
+    const [expandedGroup, setExpandedGroup] = useState<string | null>(null);
 
     const queryClient = useQueryClient();
 
@@ -20,14 +35,74 @@ export const MasterDataPage = () => {
     const { data: inventory } = useQuery({ queryKey: ['inventory'], queryFn: api.getInventory });
     const { data: machines } = useQuery({ queryKey: ['machines'], queryFn: api.getMachines });
 
+    // Group inventory by name
+    const groupedInventory = inventory?.reduce((acc, item) => {
+        if (!acc[item.name]) {
+            acc[item.name] = {
+                name: item.name,
+                category: item.category,
+                total: 0,
+                available: 0,
+                items: []
+            };
+        }
+        acc[item.name].total += 1;
+        if (item.status === 'sterile') {
+            acc[item.name].available += 1;
+        }
+        acc[item.name].items.push(item);
+        return acc;
+    }, {} as Record<string, { name: string, category: string, total: number, available: number, items: typeof inventory }>) || {};
+
     const createToolMutation = useMutation({
         mutationFn: api.createToolSet,
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['inventory'] });
             setIsModalOpen(false);
-            setFormData({ name: '', barcode: '', category: 'Bedah' });
+            resetForm();
         },
     });
+
+    const createStaffMutation = useMutation({
+        mutationFn: api.createStaff,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['staff'] });
+            setIsModalOpen(false);
+            resetForm();
+        },
+    });
+
+    const createMachineMutation = useMutation({
+        mutationFn: api.createMachine,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['machines'] });
+            setIsModalOpen(false);
+            resetForm();
+        },
+    });
+
+    const updateToolMutation = useMutation({
+        mutationFn: ({ id, data }: { id: string, data: any }) => api.updateTool(id, data),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['inventory'] });
+            setEditingItem(null);
+        },
+    });
+
+    const deleteToolMutation = useMutation({
+        mutationFn: api.deleteTool,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['inventory'] });
+        },
+    });
+
+    const resetForm = () => {
+        setFormData({
+            name: '', barcode: '', category: 'Bedah', quantity: 1,
+            employeeId: '', department: 'CSSD', role: 'operator',
+            type: 'washer'
+        });
+    };
 
     const tabs = [
         { id: 'staff', label: 'Staff & User', icon: Users },
@@ -35,12 +110,59 @@ export const MasterDataPage = () => {
         { id: 'machines', label: 'Daftar Mesin', icon: Settings },
     ];
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const generateSequentialBarcode = (baseBarcode: string, index: number) => {
+        if (index === 0) return baseBarcode;
+        const match = baseBarcode.match(/^(.*?)(\d+)$/);
+        if (match) {
+            const prefix = match[1];
+            const number = match[2];
+            const newNumber = (parseInt(number) + index).toString().padStart(number.length, '0');
+            return `${prefix}${newNumber}`;
+        }
+        return `${baseBarcode}-${index + 1}`;
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
         if (activeTab === 'inventory') {
-            createToolMutation.mutate(formData);
+            if (editingItem) {
+                updateToolMutation.mutate({
+                    id: editingItem.id,
+                    data: { name: formData.name, barcode: formData.barcode, category: formData.category }
+                });
+            } else {
+                const qty = formData.quantity || 1;
+                for (let i = 0; i < qty; i++) {
+                    const newBarcode = generateSequentialBarcode(formData.barcode, i);
+                    await createToolMutation.mutateAsync({
+                        name: formData.name,
+                        barcode: newBarcode,
+                        category: formData.category
+                    });
+                }
+            }
+        } else if (activeTab === 'staff') {
+            createStaffMutation.mutate({
+                name: formData.name,
+                employeeId: formData.employeeId,
+                department: formData.department,
+                role: formData.role as 'admin' | 'operator'
+            });
+        } else if (activeTab === 'machines') {
+            createMachineMutation.mutate({
+                name: formData.name,
+                type: formData.type as 'washer' | 'sterilizer'
+            });
         }
     };
+
+    // ... (rest of the component)
+
+    // UI snippet for Modal content needs to be inserted here? No, I'll do it in a separate edit to keep it clean.
+    // Wait, the ReplacementContent must be contiguous.
+    // I will replace the top part first (imports to handleSubmit).
+    // Then I will do a separate edit for the Modal UI.
 
     return (
         <div className="space-y-8">
@@ -100,9 +222,9 @@ export const MasterDataPage = () => {
                             {activeTab === 'inventory' && (
                                 <tr>
                                     <th className="px-8 py-4">Nama Set / Alat</th>
-                                    <th className="px-8 py-4">Barcode</th>
                                     <th className="px-8 py-4">Kategori</th>
-                                    <th className="px-8 py-4">Status Terakhir</th>
+                                    <th className="px-8 py-4 text-center">Total Inventory</th>
+                                    <th className="px-8 py-4 text-center">Siap Distribusi</th>
                                     <th className="px-8 py-4"></th>
                                 </tr>
                             )}
@@ -142,32 +264,132 @@ export const MasterDataPage = () => {
                                 </tr>
                             ))}
 
-                            {activeTab === 'inventory' && inventory?.map(item => (
-                                <tr key={item.id} className="group hover:bg-slate-50/50 transition-colors">
-                                    <td className="px-8 py-5 font-bold text-slate-900">{item.name}</td>
-                                    <td className="px-8 py-5 text-sm font-mono text-slate-400 italic font-bold">{item.barcode}</td>
-                                    <td className="px-8 py-5 text-sm text-slate-600">{item.category}</td>
-                                    <td className="px-8 py-5">
-                                        <span className={cn(
-                                            "px-2 py-0.5 rounded-md text-[10px] font-black uppercase",
-                                            item.status === 'sterile' ? "bg-accent-emerald/10 text-accent-emerald" : "bg-slate-100 text-slate-500"
-                                        )}>
-                                            {item.status}
-                                        </span>
-                                    </td>
-                                    <td className="px-8 py-5 text-right">
-                                        <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <button className="p-2 text-slate-400 hover:text-accent-indigo transition-colors"><Edit2 size={16} /></button>
-                                            <button className="p-2 text-slate-400 hover:text-accent-rose transition-colors"><Trash2 size={16} /></button>
-                                        </div>
-                                    </td>
-                                </tr>
+                            {activeTab === 'inventory' && Object.values(groupedInventory).map((group: any) => (
+                                <>
+                                    <tr
+                                        key={group.name}
+                                        className={cn(
+                                            "group transition-colors cursor-pointer",
+                                            expandedGroup === group.name ? "bg-slate-50" : "hover:bg-slate-50/50"
+                                        )}
+                                        onClick={() => setExpandedGroup(expandedGroup === group.name ? null : group.name)}
+                                    >
+                                        <td className="px-8 py-5 font-bold text-slate-900 flex items-center gap-2">
+                                            <ChevronRight size={16} className={cn("text-slate-400 transition-transform", expandedGroup === group.name && "rotate-90")} />
+                                            {group.name}
+                                        </td>
+                                        <td className="px-8 py-5 text-sm text-slate-600">{group.category}</td>
+                                        <td className="px-8 py-5 text-center">
+                                            <div className="inline-flex items-center gap-2 px-3 py-1 bg-slate-100 rounded-full">
+                                                <Box size={14} className="text-slate-500" />
+                                                <span className="text-xs font-bold text-slate-700">{group.total} Unit</span>
+                                            </div>
+                                        </td>
+                                        <td className="px-8 py-5 text-center">
+                                            <div className="inline-flex items-center gap-2 px-3 py-1 bg-accent-emerald/10 rounded-full">
+                                                <PackageCheck size={14} className="text-accent-emerald" />
+                                                <span className="text-xs font-bold text-accent-emerald">{group.available} Ready</span>
+                                            </div>
+                                        </td>
+                                        <td className="px-8 py-5 text-right">
+                                            <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <Button
+                                                    size="sm"
+                                                    className="h-8 px-3 gap-1 bg-accent-emerald text-white hover:bg-accent-emerald/90 shadow-sm"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        resetForm();
+                                                        setFormData(prev => ({ ...prev, name: group.name, category: group.category, barcode: '' }));
+                                                        setEditingItem(null);
+                                                        setIsModalOpen(true);
+                                                    }}
+                                                >
+                                                    <Plus size={14} />
+                                                    Tambah Unit
+                                                </Button>
+                                                <Button size="sm" variant="ghost" className="h-8" onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setExpandedGroup(expandedGroup === group.name ? null : group.name);
+                                                }}>
+                                                    Detail
+                                                </Button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {expandedGroup === group.name && (
+                                        <tr>
+                                            <td colSpan={5} className="bg-slate-50 px-8 pb-6 pt-0">
+                                                <div className="pl-6 border-l-2 border-slate-200">
+                                                    <table className="w-full text-sm">
+                                                        <thead className="text-[10px] uppercase text-slate-400 font-bold border-b border-slate-200/50">
+                                                            <tr>
+                                                                <th className="py-2 text-left">Barcode</th>
+                                                                <th className="py-2 text-left">Status Saat Ini</th>
+                                                                <th className="py-2 text-right">Aksi</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody className="divide-y divide-slate-200/50">
+                                                            {group.items.map((item: any) => (
+                                                                <tr key={item.id} className="hover:bg-slate-100/50">
+                                                                    <td className="py-3 font-mono text-slate-600">{item.barcode}</td>
+                                                                    <td className="py-3">
+                                                                        <span className={cn(
+                                                                            "px-2 py-0.5 rounded text-[10px] font-bold uppercase",
+                                                                            item.status === 'sterile' ? "bg-accent-emerald/10 text-accent-emerald" : "bg-slate-100 text-slate-500"
+                                                                        )}>
+                                                                            {item.status}
+                                                                        </span>
+                                                                    </td>
+                                                                    <td className="py-3 text-right flex justify-end gap-2">
+                                                                        <button
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                setEditingItem(item);
+                                                                                setFormData({
+                                                                                    name: item.name,
+                                                                                    barcode: item.barcode,
+                                                                                    category: item.category,
+                                                                                    quantity: 1,
+                                                                                    employeeId: '',
+                                                                                    department: 'CSSD',
+                                                                                    role: 'operator',
+                                                                                    type: 'washer'
+                                                                                });
+                                                                                setIsModalOpen(true);
+                                                                            }}
+                                                                            className="p-1.5 text-slate-400 hover:text-accent-indigo hover:bg-accent-indigo/10 rounded transition-colors"
+                                                                            title="Edit Item"
+                                                                        >
+                                                                            <Edit2 size={14} />
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                if (confirm(`Apakah Anda yakin ingin menghapus alat "${item.name}" (${item.barcode})?`)) {
+                                                                                    deleteToolMutation.mutate(item.id);
+                                                                                }
+                                                                            }}
+                                                                            className="p-1.5 text-slate-400 hover:text-accent-rose hover:bg-accent-rose/10 rounded transition-colors"
+                                                                            title="Hapus Item"
+                                                                        >
+                                                                            <Trash2 size={14} />
+                                                                        </button>
+                                                                    </td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    )}
+                                </>
                             ))}
 
                             {activeTab === 'machines' && machines?.map(item => (
                                 <tr key={item.id} className="group hover:bg-slate-50/50 transition-colors">
                                     <td className="px-8 py-5 font-bold text-slate-900">{item.name}</td>
-                                    <td className="px-8 py-5 text-sm text-slate-600 uppercase tracking-wider font-bold">XZ-ALPHA-2024</td>
+                                    <td className="px-8 py-5 text-sm text-slate-600 uppercase tracking-wider font-bold">{item.type}</td>
                                     <td className="px-8 py-5">
                                         <div className="flex items-center gap-2">
                                             <div className={cn(
@@ -190,52 +412,153 @@ export const MasterDataPage = () => {
                 </div>
             </Card>
 
-            {/* Modal Tambah Alat */}
+            {/* Modal Tambah Data */}
             {isModalOpen && (
                 <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                     <Card className="w-full max-w-lg shadow-2xl animate-in zoom-in-95 duration-200">
                         <div className="flex items-center justify-between mb-6">
-                            <h3 className="text-xl font-black text-slate-900">Tambah Alat Baru</h3>
+                            <h3 className="text-xl font-black text-slate-900">
+                                {editingItem ? 'Edit Data' : `Tambah ${activeTab === 'staff' ? 'Staff' : activeTab === 'inventory' ? 'Alat' : 'Mesin'} Baru`}
+                            </h3>
                             <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400">
                                 <X size={20} />
                             </button>
                         </div>
                         <form onSubmit={handleSubmit} className="space-y-4">
-                            <div className="space-y-1.5">
-                                <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest pl-1">Nama Set / Alat</label>
-                                <Input
-                                    required
-                                    placeholder="Contoh: Set Bedah Dasar B"
-                                    value={formData.name}
-                                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                />
-                            </div>
-                            <div className="space-y-1.5">
-                                <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest pl-1">Barcode / Serial Number</label>
-                                <Input
-                                    required
-                                    placeholder="Contoh: SET-099"
-                                    value={formData.barcode}
-                                    onChange={(e) => setFormData({ ...formData, barcode: e.target.value.toUpperCase() })}
-                                />
-                            </div>
-                            <div className="space-y-1.5">
-                                <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest pl-1">Kategori</label>
-                                <select
-                                    className="w-full p-4 rounded-2xl border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:ring-4 focus:ring-accent-indigo/5 transition-all"
-                                    value={formData.category}
-                                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                                >
-                                    <option>Bedah</option>
-                                    <option>Ortopedi</option>
-                                    <option>Gigi</option>
-                                    <option>Obsgyn</option>
-                                </select>
-                            </div>
+
+                            {/* Form Inventory */}
+                            {activeTab === 'inventory' && (
+                                <>
+                                    <div className="space-y-1.5">
+                                        <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest pl-1">Nama Set / Alat</label>
+                                        <Input
+                                            required
+                                            placeholder="Contoh: Set Bedah Dasar B"
+                                            value={formData.name}
+                                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                        />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-1.5">
+                                            <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest pl-1">
+                                                {formData.quantity > 1 ? 'Barcode Awal' : 'Barcode / Serial Number'}
+                                            </label>
+                                            <Input
+                                                required
+                                                placeholder="Contoh: SET-099"
+                                                value={formData.barcode}
+                                                onChange={(e) => setFormData({ ...formData, barcode: e.target.value.toUpperCase() })}
+                                            />
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest pl-1">Jumlah Unit</label>
+                                            <Input
+                                                type="number"
+                                                min={1}
+                                                max={100}
+                                                required
+                                                value={formData.quantity}
+                                                onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 1 })}
+                                                disabled={!!editingItem}
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest pl-1">Kategori</label>
+                                        <select
+                                            className="w-full p-4 rounded-2xl border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:ring-4 focus:ring-accent-indigo/5 transition-all"
+                                            value={formData.category}
+                                            onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                                        >
+                                            <option>Bedah</option>
+                                            <option>Ortopedi</option>
+                                            <option>Gigi</option>
+                                            <option>Obsgyn</option>
+                                        </select>
+                                    </div>
+                                </>
+                            )}
+
+                            {/* Form Staff */}
+                            {activeTab === 'staff' && (
+                                <>
+                                    <div className="space-y-1.5">
+                                        <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest pl-1">Nama Lengkap</label>
+                                        <Input
+                                            required
+                                            placeholder="Nama Staff"
+                                            value={formData.name}
+                                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                        />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest pl-1">ID Pegawai</label>
+                                        <Input
+                                            required
+                                            placeholder="Contoh: EMP001"
+                                            value={formData.employeeId}
+                                            onChange={(e) => setFormData({ ...formData, employeeId: e.target.value })}
+                                        />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-1.5">
+                                            <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest pl-1">Departemen</label>
+                                            <select
+                                                className="w-full p-4 rounded-2xl border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:ring-4 focus:ring-accent-indigo/5 transition-all"
+                                                value={formData.department}
+                                                onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                                            >
+                                                <option>CSSD</option>
+                                                <option>OK (Kamar Operasi)</option>
+                                                <option>Rawat Inap</option>
+                                            </select>
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest pl-1">Role</label>
+                                            <select
+                                                className="w-full p-4 rounded-2xl border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:ring-4 focus:ring-accent-indigo/5 transition-all"
+                                                value={formData.role}
+                                                onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                                            >
+                                                <option value="operator">Operator</option>
+                                                <option value="admin">Admin</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </>
+                            )}
+
+                            {/* Form Machines */}
+                            {activeTab === 'machines' && (
+                                <>
+                                    <div className="space-y-1.5">
+                                        <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest pl-1">Nama Mesin</label>
+                                        <Input
+                                            required
+                                            placeholder="Contoh: Autoclave 2A"
+                                            value={formData.name}
+                                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                        />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest pl-1">Tipe Mesin</label>
+                                        <select
+                                            className="w-full p-4 rounded-2xl border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:ring-4 focus:ring-accent-indigo/5 transition-all"
+                                            value={formData.type}
+                                            onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                                        >
+                                            <option value="washer">Washer Disinfector</option>
+                                            <option value="sterilizer">Steam Sterilizer (Autoclave)</option>
+                                            <option value="plasma">Plasma Sterilizer</option>
+                                        </select>
+                                    </div>
+                                </>
+                            )}
+
                             <div className="pt-4 flex gap-3">
                                 <Button variant="secondary" className="flex-1" type="button" onClick={() => setIsModalOpen(false)}>Batal</Button>
-                                <Button className="flex-1" type="submit" disabled={createToolMutation.isPending}>
-                                    {createToolMutation.isPending ? 'Menyimpan...' : 'Simpan Alat'}
+                                <Button className="flex-1" type="submit" disabled={createToolMutation.isPending || updateToolMutation.isPending || createStaffMutation.isPending || createMachineMutation.isPending}>
+                                    {createToolMutation.isPending || updateToolMutation.isPending || createStaffMutation.isPending || createMachineMutation.isPending ? 'Menyimpan...' : 'Simpan Data'}
                                 </Button>
                             </div>
                         </form>
