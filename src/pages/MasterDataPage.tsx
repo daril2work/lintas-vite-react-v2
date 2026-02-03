@@ -1,25 +1,46 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
-import { Users, Database, Settings, Plus, Search, MoreVertical, Edit2, Trash2 } from 'lucide-react';
+import { Input } from '../components/ui/Input';
+import { Users, Database, Settings, Plus, Search, MoreVertical, Edit2, Trash2, X } from 'lucide-react';
 import { cn } from '../utils/cn';
 
 type TabType = 'staff' | 'inventory' | 'machines';
 
 export const MasterDataPage = () => {
     const [activeTab, setActiveTab] = useState<TabType>('staff');
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [formData, setFormData] = useState({ name: '', barcode: '', category: 'Bedah' });
+
+    const queryClient = useQueryClient();
 
     const { data: staff } = useQuery({ queryKey: ['staff'], queryFn: api.getStaff });
     const { data: inventory } = useQuery({ queryKey: ['inventory'], queryFn: api.getInventory });
     const { data: machines } = useQuery({ queryKey: ['machines'], queryFn: api.getMachines });
+
+    const createToolMutation = useMutation({
+        mutationFn: api.createToolSet,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['inventory'] });
+            setIsModalOpen(false);
+            setFormData({ name: '', barcode: '', category: 'Bedah' });
+        },
+    });
 
     const tabs = [
         { id: 'staff', label: 'Staff & User', icon: Users },
         { id: 'inventory', label: 'Inventory (Set/Alat)', icon: Database },
         { id: 'machines', label: 'Daftar Mesin', icon: Settings },
     ];
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (activeTab === 'inventory') {
+            createToolMutation.mutate(formData);
+        }
+    };
 
     return (
         <div className="space-y-8">
@@ -28,7 +49,7 @@ export const MasterDataPage = () => {
                     <h1 className="text-3xl text-slate-900">Master Data</h1>
                     <p className="text-slate-500 mt-1">Konfigurasi data dasar sistem CSSD Lintas.</p>
                 </div>
-                <Button className="gap-2">
+                <Button onClick={() => setIsModalOpen(true)} className="gap-2">
                     <Plus size={18} />
                     Tambah Data Baru
                 </Button>
@@ -61,10 +82,6 @@ export const MasterDataPage = () => {
                             placeholder={`Cari ${activeTab}...`}
                             className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-accent-indigo/5 focus:border-accent-indigo/30 transition-all"
                         />
-                    </div>
-                    <div className="flex gap-2">
-                        <Button variant="secondary" size="sm" className="h-11">Filter</Button>
-                        <Button variant="secondary" size="sm" className="h-11">Export CSV</Button>
                     </div>
                 </div>
 
@@ -172,6 +189,59 @@ export const MasterDataPage = () => {
                     </table>
                 </div>
             </Card>
+
+            {/* Modal Tambah Alat */}
+            {isModalOpen && (
+                <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <Card className="w-full max-w-lg shadow-2xl animate-in zoom-in-95 duration-200">
+                        <div className="flex items-center justify-between mb-6">
+                            <h3 className="text-xl font-black text-slate-900">Tambah Alat Baru</h3>
+                            <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400">
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest pl-1">Nama Set / Alat</label>
+                                <Input
+                                    required
+                                    placeholder="Contoh: Set Bedah Dasar B"
+                                    value={formData.name}
+                                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest pl-1">Barcode / Serial Number</label>
+                                <Input
+                                    required
+                                    placeholder="Contoh: SET-099"
+                                    value={formData.barcode}
+                                    onChange={(e) => setFormData({ ...formData, barcode: e.target.value.toUpperCase() })}
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest pl-1">Kategori</label>
+                                <select
+                                    className="w-full p-4 rounded-2xl border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:ring-4 focus:ring-accent-indigo/5 transition-all"
+                                    value={formData.category}
+                                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                                >
+                                    <option>Bedah</option>
+                                    <option>Ortopedi</option>
+                                    <option>Gigi</option>
+                                    <option>Obsgyn</option>
+                                </select>
+                            </div>
+                            <div className="pt-4 flex gap-3">
+                                <Button variant="secondary" className="flex-1" type="button" onClick={() => setIsModalOpen(false)}>Batal</Button>
+                                <Button className="flex-1" type="submit" disabled={createToolMutation.isPending}>
+                                    {createToolMutation.isPending ? 'Menyimpan...' : 'Simpan Alat'}
+                                </Button>
+                            </div>
+                        </form>
+                    </Card>
+                </div>
+            )}
         </div>
     );
 };

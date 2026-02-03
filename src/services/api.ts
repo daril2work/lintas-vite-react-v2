@@ -44,6 +44,17 @@ export const api = {
         storage.set(KEYS.INVENTORY, updated);
     },
 
+    createToolSet: async (tool: Omit<ToolSet, 'id' | 'status'>): Promise<void> => {
+        await delay();
+        const items = storage.get<ToolSet[]>(KEYS.INVENTORY) || INITIAL_DATA.INVENTORY;
+        const newTool: ToolSet = {
+            ...tool,
+            id: Math.random().toString(36).substr(2, 9),
+            status: 'sterile', // Default to sterile so it can be 'distributed' then 'intake'
+        };
+        storage.set(KEYS.INVENTORY, [newTool, ...items]);
+    },
+
     // Machines
     getMachines: async (): Promise<Machine[]> => {
         await delay();
