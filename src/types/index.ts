@@ -4,6 +4,8 @@ export interface Staff {
     role: 'admin' | 'operator' | 'nurse';
     department: string;
     employeeId: string;
+    username?: string;
+    password?: string;
 }
 
 export interface Machine {

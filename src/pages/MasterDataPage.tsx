@@ -28,6 +28,7 @@ export const MasterDataPage = () => {
     // Edit & delete states
     const [editingItem, setEditingItem] = useState<any>(null);
     const [expandedGroup, setExpandedGroup] = useState<string | null>(null);
+    const [credentialsModal, setCredentialsModal] = useState<{ isOpen: boolean, staff: any | null }>({ isOpen: false, staff: null });
 
     const queryClient = useQueryClient();
 
@@ -143,11 +144,17 @@ export const MasterDataPage = () => {
                 }
             }
         } else if (activeTab === 'staff') {
+            // Auto-generate username and password
+            const username = formData.name.toLowerCase().replace(/\s+/g, '.');
+            const password = Math.random().toString(36).slice(-8);
+
             createStaffMutation.mutate({
                 name: formData.name,
                 employeeId: formData.employeeId,
                 department: formData.department,
-                role: formData.role as 'admin' | 'operator'
+                role: formData.role as 'admin' | 'operator',
+                username: username,
+                password: password
             });
         } else if (activeTab === 'machines') {
             createMachineMutation.mutate({
@@ -216,6 +223,7 @@ export const MasterDataPage = () => {
                                     <th className="px-8 py-4">ID Pegawai</th>
                                     <th className="px-8 py-4">Departemen</th>
                                     <th className="px-8 py-4">Role</th>
+                                    <th className="px-8 py-4">Kredensial</th>
                                     <th className="px-8 py-4"></th>
                                 </tr>
                             )}
@@ -255,6 +263,16 @@ export const MasterDataPage = () => {
                                         <span className="px-2 py-0.5 rounded-md bg-slate-100 text-[10px] font-black uppercase text-slate-500">
                                             {item.role}
                                         </span>
+                                    </td>
+                                    <td className="px-8 py-5">
+                                        <Button
+                                            size="sm"
+                                            variant="secondary"
+                                            onClick={() => setCredentialsModal({ isOpen: true, staff: item })}
+                                            className="text-xs"
+                                        >
+                                            Detail
+                                        </Button>
                                     </td>
                                     <td className="px-8 py-5 text-right">
                                         <button className="p-2 text-slate-300 hover:text-slate-500 transition-colors">
@@ -562,6 +580,57 @@ export const MasterDataPage = () => {
                                 </Button>
                             </div>
                         </form>
+                    </Card>
+                </div>
+            )}
+
+            {/* Credentials Modal */}
+            {credentialsModal.isOpen && credentialsModal.staff && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                    <Card className="w-full max-w-md">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="text-xl font-black text-slate-900">Kredensial Login</h3>
+                            <button onClick={() => setCredentialsModal({ isOpen: false, staff: null })} className="text-slate-400 hover:text-slate-600">
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <div className="space-y-4">
+                            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                                <p className="text-[10px] uppercase font-black text-slate-400 tracking-widest mb-2">Nama Staff</p>
+                                <p className="text-lg font-bold text-slate-900">{credentialsModal.staff.name}</p>
+                            </div>
+
+                            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                                <p className="text-[10px] uppercase font-black text-slate-400 tracking-widest mb-2">Username</p>
+                                <p className="text-lg font-mono font-bold text-slate-900">
+                                    {credentialsModal.staff.username || 'Belum diatur'}
+                                </p>
+                            </div>
+
+                            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                                <p className="text-[10px] uppercase font-black text-slate-400 tracking-widest mb-2">Password</p>
+                                <p className="text-lg font-mono font-bold text-slate-900">
+                                    {credentialsModal.staff.password || 'Belum diatur'}
+                                </p>
+                            </div>
+
+                            <div className="p-3 bg-accent-amber/10 border border-accent-amber/20 rounded-xl flex gap-2">
+                                <div className="text-accent-amber mt-0.5">⚠️</div>
+                                <p className="text-xs text-slate-600">
+                                    Simpan kredensial ini dengan aman. Dalam produksi, password akan di-hash untuk keamanan.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="mt-6">
+                            <Button
+                                className="w-full"
+                                onClick={() => setCredentialsModal({ isOpen: false, staff: null })}
+                            >
+                                Tutup
+                            </Button>
+                        </div>
                     </Card>
                 </div>
             )}
