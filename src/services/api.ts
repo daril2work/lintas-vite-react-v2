@@ -1,11 +1,12 @@
 import { storage, delay } from './storage';
-import type { Staff, Machine, ToolSet, WorkflowLog } from '../types';
+import type { Staff, Machine, ToolSet, WorkflowLog, ToolRequest } from '../types';
 
 const KEYS = {
     STAFF: 'lintas_staff',
     MACHINES: 'lintas_machines',
     INVENTORY: 'lintas_inventory',
     LOGS: 'lintas_logs',
+    REQUESTS: 'lintas_requests',
 };
 
 // Initial Sample Data
@@ -76,5 +77,30 @@ export const api = {
     getLogs: async (): Promise<WorkflowLog[]> => {
         await delay();
         return storage.get<WorkflowLog[]>(KEYS.LOGS) || [];
+    },
+
+    // Requests
+    getRequests: async (): Promise<ToolRequest[]> => {
+        await delay();
+        return storage.get<ToolRequest[]>(KEYS.REQUESTS) || [];
+    },
+
+    createRequest: async (request: Omit<ToolRequest, 'id' | 'timestamp' | 'status'>): Promise<void> => {
+        await delay();
+        const requests = storage.get<ToolRequest[]>(KEYS.REQUESTS) || [];
+        const newRequest: ToolRequest = {
+            ...request,
+            id: Math.random().toString(36).substr(2, 9),
+            status: 'pending',
+            timestamp: new Date().toISOString(),
+        };
+        storage.set(KEYS.REQUESTS, [newRequest, ...requests]);
+    },
+
+    updateRequestStatus: async (id: string, status: ToolRequest['status']): Promise<void> => {
+        await delay();
+        const requests = storage.get<ToolRequest[]>(KEYS.REQUESTS) || [];
+        const updated = requests.map(req => req.id === id ? { ...req, status } : req);
+        storage.set(KEYS.REQUESTS, updated);
     }
 };

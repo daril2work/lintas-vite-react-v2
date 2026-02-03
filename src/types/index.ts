@@ -34,3 +34,13 @@ export interface WorkflowLog {
     notes?: string;
     photo?: string;
 }
+
+export interface ToolRequest {
+    id: string;
+    toolName: string;
+    toolCode?: string;
+    requestingRoom: string;
+    status: 'pending' | 'fulfilled' | 'unavailable';
+    timestamp: string;
+    notes?: string;
+}

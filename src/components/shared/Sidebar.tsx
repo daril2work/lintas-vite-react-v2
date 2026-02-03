@@ -12,7 +12,8 @@ import {
     ClipboardCheck,
     User,
     ChevronDown,
-    ChevronRight
+    ChevronRight,
+    ListTodo
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { useUIStore } from '../../store';
@@ -43,6 +44,7 @@ const MENU_SECTIONS = [
         items: [
             { icon: Send, label: 'Kirim Alat Kotor', path: '/ward/send' },
             { icon: ClipboardCheck, label: 'Terima Distribusi', path: '/ward/receive' },
+            { icon: ListTodo, label: 'Permintaan Alat', path: '/ward/request' },
         ]
     },
     {

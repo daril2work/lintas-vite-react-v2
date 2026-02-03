@@ -10,6 +10,7 @@ import { MasterDataPage } from './pages/MasterDataPage';
 import { ReportsPage } from './pages/ReportsPage';
 import { WardSendPage } from './pages/WardSendPage';
 import { WardReceivePage } from './pages/WardReceivePage';
+import { WardRequestPage } from './pages/WardRequestPage';
 
 function App() {
   return (
@@ -24,6 +25,7 @@ function App() {
           <Route path="/distribution" element={<DistributionPage />} />
           <Route path="/ward/send" element={<WardSendPage />} />
           <Route path="/ward/receive" element={<WardReceivePage />} />
+          <Route path="/ward/request" element={<WardRequestPage />} />
           <Route path="/admin" element={<MasterDataPage />} />
           <Route path="/reports" element={<ReportsPage />} />
         </Route>
