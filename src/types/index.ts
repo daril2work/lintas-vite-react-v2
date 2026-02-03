@@ -13,6 +13,8 @@ export interface Machine {
     status: 'idle' | 'running' | 'maintenance' | 'error';
     lastService?: string;
     nextService?: string;
+    startTime?: string;
+    duration?: number;
 }
 
 export interface ToolSet {

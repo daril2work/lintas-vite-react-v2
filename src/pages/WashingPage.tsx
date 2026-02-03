@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { Card } from '../components/ui/Card';
@@ -9,31 +9,79 @@ import { cn } from '../utils/cn';
 export const WashingPage = () => {
     const queryClient = useQueryClient();
     const [selectedMachine, setSelectedMachine] = useState<string | null>(null);
+    const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+    const [program, setProgram] = useState<'standard' | 'heavy' | 'delicate'>('standard');
 
-    const { data: machines } = useQuery({
-        queryKey: ['machines'],
-        queryFn: api.getMachines,
-    });
+    // Force re-render for timer
+    const [, setTick] = useState(0);
 
-    const { data: inventory } = useQuery({
-        queryKey: ['inventory'],
-        queryFn: api.getInventory,
-    });
+    useEffect(() => {
+        const timer = setInterval(() => setTick(t => t + 1), 1000); // 1 sec tick
+        return () => clearInterval(timer);
+    }, []);
+
+    const { data: machines } = useQuery({ queryKey: ['machines'], queryFn: api.getMachines });
+    const { data: inventory } = useQuery({ queryKey: ['inventory'], queryFn: api.getInventory });
 
     const washerMachines = machines?.filter(m => m.type === 'washer') || [];
     const dirtyItems = inventory?.filter(item => item.status === 'dirty') || [];
 
+    const getRemainingTime = (m: typeof washerMachines[0]) => {
+        if (m.status !== 'running' || !m.startTime || !m.duration) return null;
+        const elapsed = new Date().getTime() - new Date(m.startTime).getTime();
+        const totalDurationMs = m.duration * 60 * 1000;
+        const remaining = totalDurationMs - elapsed;
+
+        if (remaining <= 0) return '00:00';
+
+        const minutes = Math.floor(remaining / 60000);
+        const seconds = Math.floor((remaining % 60000) / 1000);
+        return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    };
+
+    const getProgress = (m: typeof washerMachines[0]) => {
+        if (m.status !== 'running' || !m.startTime || !m.duration) return 0;
+        const elapsed = new Date().getTime() - new Date(m.startTime).getTime();
+        const totalDurationMs = m.duration * 60 * 1000;
+        return Math.min(100, (elapsed / totalDurationMs) * 100);
+    };
+
+    const toggleItem = (id: string) => {
+        const newSelected = new Set(selectedItems);
+        if (newSelected.has(id)) newSelected.delete(id);
+        else newSelected.add(id);
+        setSelectedItems(newSelected);
+    };
+
+    const toggleAll = () => {
+        if (selectedItems.size === dirtyItems.length) setSelectedItems(new Set());
+        else setSelectedItems(new Set(dirtyItems.map(i => i.id)));
+    };
+
     const startWashingMutation = useMutation({
         mutationFn: async () => {
-            // In a real app, we'd create a batch and link dirty items to it.
-            // For now, we update all dirty items to 'washing'.
-            for (const item of dirtyItems) {
-                await api.updateToolStatus(item.id, 'washing');
-            }
+            if (!selectedMachine) return;
+
+            // 1. Update machine status to running
+            await api.updateMachineStatus(selectedMachine, 'running');
+
+            // 2. Update status of selected items
+            await api.batchUpdateToolStatus(Array.from(selectedItems), 'washing');
+
+            // 3. Log the action
+            await api.addLog({
+                toolSetId: Array.from(selectedItems)[0], // Link to first item for ref
+                action: 'Start Washing',
+                operatorId: 'system-admin',
+                machineId: selectedMachine,
+                notes: `Started ${program} cycle with ${selectedItems.size} items.`
+            });
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['inventory'] });
+            queryClient.invalidateQueries({ queryKey: ['machines'] });
             setSelectedMachine(null);
+            setSelectedItems(new Set());
         },
     });
 
@@ -80,11 +128,27 @@ export const WashingPage = () => {
                                     </div>
                                     <div className={cn(
                                         "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest",
-                                        machine.status === 'idle' ? "bg-accent-emerald/10 text-accent-emerald" : "bg-accent-amber/10 text-accent-amber"
+                                        machine.status === 'idle' ? "bg-accent-emerald/10 text-accent-emerald" :
+                                            machine.status === 'running' ? "bg-accent-indigo/10 text-accent-indigo" : "bg-accent-amber/10 text-accent-amber"
                                     )}>
                                         {machine.status}
                                     </div>
                                 </div>
+
+                                {machine.status === 'running' && (
+                                    <div className="mt-4 space-y-2">
+                                        <div className="flex justify-between text-xs font-bold">
+                                            <span className="text-slate-500">Processing...</span>
+                                            <span className="font-mono text-accent-indigo">{getRemainingTime(machine)}</span>
+                                        </div>
+                                        <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                                            <div
+                                                className="h-full bg-accent-indigo transition-all duration-1000 ease-linear"
+                                                style={{ width: `${getProgress(machine)}%` }}
+                                            />
+                                        </div>
+                                    </div>
+                                )}
 
                                 <div className="mt-6 pt-6 border-t border-slate-100 flex items-center justify-between">
                                     <div className="flex items-center gap-2 text-xs text-slate-500">
@@ -105,11 +169,26 @@ export const WashingPage = () => {
                     </div>
 
                     <div className="space-y-4">
-                        <h4 className="text-xs font-bold uppercase tracking-widest text-slate-400">Daftar Alat dalam Antrian</h4>
+                        <div className="flex items-center justify-between">
+                            <h4 className="text-xs font-bold uppercase tracking-widest text-slate-400">Daftar Alat dalam Antrian</h4>
+                            {selectedItems.size > 0 && (
+                                <span className="text-xs font-bold text-accent-indigo bg-accent-indigo/10 px-2 py-1 rounded-lg">
+                                    {selectedItems.size} Selected
+                                </span>
+                            )}
+                        </div>
                         <div className="bg-white rounded-3xl border border-slate-100 overflow-hidden">
                             <table className="w-full text-left">
                                 <thead className="bg-slate-50 text-[10px] uppercase tracking-widest font-black text-slate-500">
                                     <tr>
+                                        <th className="px-6 py-4 w-10">
+                                            <input
+                                                type="checkbox"
+                                                className="rounded border-slate-300 text-accent-indigo focus:ring-accent-indigo"
+                                                checked={selectedItems.size === dirtyItems.length && dirtyItems.length > 0}
+                                                onChange={toggleAll}
+                                            />
+                                        </th>
                                         <th className="px-6 py-4">Nama Alat / Set</th>
                                         <th className="px-6 py-4">Barcode</th>
                                         <th className="px-6 py-4">Unit Asal</th>
@@ -118,7 +197,15 @@ export const WashingPage = () => {
                                 </thead>
                                 <tbody className="divide-y divide-slate-50">
                                     {dirtyItems.map(item => (
-                                        <tr key={item.id} className="text-sm">
+                                        <tr key={item.id} className={cn("text-sm transition-colors", selectedItems.has(item.id) ? "bg-accent-indigo/[0.02]" : "hover:bg-slate-50")}>
+                                            <td className="px-6 py-4">
+                                                <input
+                                                    type="checkbox"
+                                                    className="rounded border-slate-300 text-accent-indigo focus:ring-accent-indigo"
+                                                    checked={selectedItems.has(item.id)}
+                                                    onChange={() => toggleItem(item.id)}
+                                                />
+                                            </td>
                                             <td className="px-6 py-4 font-bold text-slate-900">{item.name}</td>
                                             <td className="px-6 py-4 font-mono text-xs text-slate-500">{item.barcode}</td>
                                             <td className="px-6 py-4 text-slate-600">Bedah Sentral</td>
@@ -132,7 +219,7 @@ export const WashingPage = () => {
                                     ))}
                                     {dirtyItems.length === 0 && (
                                         <tr>
-                                            <td colSpan={4} className="px-6 py-12 text-center text-slate-400">
+                                            <td colSpan={5} className="px-6 py-12 text-center text-slate-400">
                                                 Tidak ada antrian alat kotor.
                                             </td>
                                         </tr>
@@ -157,23 +244,43 @@ export const WashingPage = () => {
                             </div>
 
                             <div className="space-y-3">
+                                <p className="text-[10px] uppercase font-bold text-slate-500 tracking-widest">Washing Program</p>
+                                <div className="grid grid-cols-3 gap-2">
+                                    {(['standard', 'heavy', 'delicate'] as const).map(p => (
+                                        <button
+                                            key={p}
+                                            onClick={() => setProgram(p)}
+                                            className={cn(
+                                                "py-2 rounded-lg text-[10px] font-bold uppercase transition-all border",
+                                                program === p
+                                                    ? "bg-accent-indigo border-accent-indigo text-white shadow-lg"
+                                                    : "bg-transparent border-slate-700 text-slate-400 hover:border-slate-500"
+                                            )}
+                                        >
+                                            {p}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="space-y-3 pt-4 border-t border-slate-700">
                                 <div className="flex justify-between items-center text-xs">
-                                    <span className="text-slate-400">Total untuk dicuci</span>
-                                    <span className="font-bold">{dirtyItems.length} Items</span>
+                                    <span className="text-slate-400">Item Dipilih</span>
+                                    <span className="font-bold">{selectedItems.size} Items</span>
                                 </div>
                                 <div className="flex justify-between items-center text-xs">
                                     <span className="text-slate-400">Estimasi Waktu</span>
-                                    <span className="font-bold">45 Menit</span>
+                                    <span className="font-bold">{program === 'heavy' ? '60' : program === 'delicate' ? '30' : '45'} Menit</span>
                                 </div>
                             </div>
 
                             <Button
                                 className="w-full h-14 bg-accent-indigo hover:bg-indigo-600 text-white border-none gap-2"
-                                disabled={!selectedMachine || dirtyItems.length === 0 || startWashingMutation.isPending}
+                                disabled={!selectedMachine || selectedItems.size === 0 || startWashingMutation.isPending}
                                 onClick={() => selectedMachine && startWashingMutation.mutate()}
                             >
                                 <Play size={20} fill="currentColor" />
-                                Mulai Proses Cuci
+                                {startWashingMutation.isPending ? 'Starting...' : 'Mulai Proses Cuci'}
                             </Button>
                         </div>
                     </Card>

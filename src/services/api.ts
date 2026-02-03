@@ -97,6 +97,21 @@ export const api = {
         storage.set(KEYS.MACHINES, [newMachine, ...items]);
     },
 
+    updateMachineStatus: async (id: string, status: Machine['status'], meta?: { startTime?: string, duration?: number }): Promise<void> => {
+        await delay();
+        const items = storage.get<Machine[]>(KEYS.MACHINES) || INITIAL_DATA.MACHINES;
+        const updated = items.map(m => m.id === id ? { ...m, status, ...meta } : m);
+        storage.set(KEYS.MACHINES, updated);
+    },
+
+    batchUpdateToolStatus: async (ids: string[], status: ToolSet['status']): Promise<void> => {
+        await delay();
+        const items = storage.get<ToolSet[]>(KEYS.INVENTORY) || INITIAL_DATA.INVENTORY;
+        const setIds = new Set(ids);
+        const updated = items.map(item => setIds.has(item.id) ? { ...item, status } : item);
+        storage.set(KEYS.INVENTORY, updated);
+    },
+
     // Logs
     addLog: async (log: Omit<WorkflowLog, 'id' | 'timestamp'>): Promise<void> => {
         await delay();
