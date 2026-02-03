@@ -1,0 +1,38 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #0f172a;
+  --color-primary-light: #1e293b;
+  --color-accent-amber: #fbbf24;
+  --color-accent-indigo: #6366f1;
+  --color-accent-emerald: #10b981;
+  --color-accent-rose: #f43f5e;
+
+  --font-sans: "Inter", system-ui, sans-serif;
+
+  /* Custom Shadows */
+  --shadow-soft: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+  --shadow-card-soft: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+}
+
+@layer base {
+  body {
+    @apply bg-slate-50 text-slate-900 font-sans antialiased;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-black tracking-tight;
+  }
+}
+
+@layer components {
+  .glass {
+    @apply bg-white/70 backdrop-blur-md border border-white/20;
+  }
+}
