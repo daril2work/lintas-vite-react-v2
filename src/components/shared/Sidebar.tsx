@@ -13,23 +13,28 @@ import {
     User,
     ChevronDown,
     ChevronRight,
-    ListTodo
+    ListTodo,
+    LogOut
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { useUIStore } from '../../store';
 import { useState } from 'react';
+import { useAuth } from '../../context/AuthContext';
+import { NavLink, useNavigate } from 'react-router-dom';
 
 const MENU_SECTIONS = [
     {
         id: 'utama',
         header: 'UTAMA',
+        allowedRoles: ['admin', 'operator', 'nurse'],
         items: [
-            { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
+            { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
         ]
     },
     {
         id: 'aktivitas',
         header: 'AKTIVITAS CSSD',
+        allowedRoles: ['admin', 'operator'],
         items: [
             { icon: PackageSearch, label: 'Penerimaan', path: '/intake' },
             { icon: Waves, label: 'Pencucian', path: '/washing' },
@@ -41,6 +46,7 @@ const MENU_SECTIONS = [
     {
         id: 'ruangan',
         header: 'RUANGAN / UNIT',
+        allowedRoles: ['admin', 'nurse'],
         items: [
             { icon: Send, label: 'Kirim Alat Kotor', path: '/ward/send' },
             { icon: ClipboardCheck, label: 'Terima Distribusi', path: '/ward/receive' },
@@ -50,6 +56,7 @@ const MENU_SECTIONS = [
     {
         id: 'backoffice',
         header: 'BACKOFFICE',
+        allowedRoles: ['admin'],
         items: [
             { icon: Database, label: 'Master Data', path: '/admin' },
             { icon: BarChart2, label: 'Laporan', path: '/reports' },
@@ -59,11 +66,24 @@ const MENU_SECTIONS = [
 
 export const Sidebar = () => {
     const { isSidebarOpen, toggleSidebar } = useUIStore();
-    const [activeSection, setActiveSection] = useState<string | null>('aktivitas'); // Default open section
+    const { user, logout } = useAuth();
+    const navigate = useNavigate();
+    const [activeSection, setActiveSection] = useState<string | null>('aktivitas');
 
     const toggleSection = (id: string) => {
         setActiveSection(prev => prev === id ? null : id);
     };
+
+    const handleLogout = () => {
+        logout();
+        navigate('/');
+    };
+
+    // Filter menu sections based on role
+    const visibleSections = MENU_SECTIONS.filter(section => {
+        if (!user) return false;
+        return section.allowedRoles.includes(user.role);
+    });
 
     return (
         <aside
@@ -83,7 +103,7 @@ export const Sidebar = () => {
             </div>
 
             <nav className="flex-1 px-4 py-4 space-y-2 overflow-y-auto custom-scrollbar">
-                {MENU_SECTIONS.map((section) => {
+                {visibleSections.map((section) => {
                     const isOpen = activeSection === section.id;
 
                     return (
@@ -109,14 +129,22 @@ export const Sidebar = () => {
                                 {section.items.map((item) => {
                                     const Icon = item.icon;
                                     return (
-                                        <a
+                                        <NavLink
                                             key={item.label}
-                                            href={item.path}
-                                            className="flex items-center gap-4 px-4 py-3 rounded-2xl text-slate-400 hover:text-white hover:bg-slate-800 transition-all group"
+                                            to={item.path}
+                                            className={({ isActive }) => cn(
+                                                "flex items-center gap-4 px-4 py-3 rounded-2xl transition-all group",
+                                                isActive
+                                                    ? "text-white bg-accent-indigo shadow-lg shadow-accent-indigo/20 font-bold"
+                                                    : "text-slate-400 hover:text-white hover:bg-slate-800"
+                                            )}
                                         >
-                                            <Icon size={20} className="group-hover:text-accent-indigo transition-colors" />
-                                            <span className="text-sm font-semibold">{item.label}</span>
-                                        </a>
+                                            <Icon size={20} className={cn(
+                                                "transition-colors",
+                                                "group-hover:text-accent-indigo"
+                                            )} />
+                                            <span className="text-sm">{item.label}</span>
+                                        </NavLink>
                                     );
                                 })}
                             </div>
@@ -125,16 +153,24 @@ export const Sidebar = () => {
                 })}
             </nav>
 
-            <div className="p-4 mt-auto">
-                <div className="bg-slate-800/50 rounded-2xl p-4 flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center">
-                        <User size={20} className="text-slate-400" />
+            <div className="p-4 mt-auto space-y-2">
+                <div className="bg-slate-800/50 rounded-2xl p-4 flex items-center gap-4 border border-white/5">
+                    <div className="w-10 h-10 rounded-full bg-accent-indigo/20 flex items-center justify-center border border-accent-indigo/30">
+                        <User size={20} className="text-accent-indigo" />
                     </div>
                     <div className="flex-1 overflow-hidden">
-                        <p className="text-sm font-bold truncate">Operator CSSD</p>
-                        <p className="text-[10px] text-slate-500 uppercase tracking-widest">Shift Pagi</p>
+                        <p className="text-sm font-bold truncate leading-none mb-1">{user?.name || 'User Lintas'}</p>
+                        <p className="text-[10px] text-slate-500 uppercase font-black tracking-widest">{user?.role || 'Guest'}</p>
                     </div>
                 </div>
+
+                <button
+                    onClick={handleLogout}
+                    className="w-full flex items-center justify-center gap-3 py-3 rounded-2xl text-slate-400 hover:text-white hover:bg-accent-rose/10 hover:text-accent-rose transition-all font-bold text-sm"
+                >
+                    <LogOut size={18} />
+                    Keluar Sistem
+                </button>
             </div>
         </aside>
     );

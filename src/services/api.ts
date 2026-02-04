@@ -12,8 +12,33 @@ const KEYS = {
 // Initial Sample Data
 const INITIAL_DATA = {
     STAFF: [
-        { id: '1', name: 'Budi Santoso', role: 'admin', department: 'CSSD', employeeId: 'EMP001' },
-        { id: '2', name: 'Siti Aminah', role: 'operator', department: 'CSSD', employeeId: 'EMP002' },
+        {
+            id: 'admin-1',
+            name: 'Super Admin',
+            role: 'admin',
+            department: 'CSSD',
+            employeeId: 'ADM001',
+            username: 'daril2work@gmail.com',
+            password: '123456'
+        },
+        {
+            id: '2',
+            name: 'Siti Aminah',
+            role: 'operator',
+            department: 'CSSD',
+            employeeId: 'EMP002',
+            username: 'siti.aminah',
+            password: 'password123'
+        },
+        {
+            id: '3',
+            name: 'Ani Perawat',
+            role: 'nurse',
+            department: 'IGD',
+            employeeId: 'NRS001',
+            username: 'ani.perawat',
+            password: 'password123'
+        }
     ] as Staff[],
     MACHINES: [
         { id: 'm1', name: 'Washer 01', type: 'washer', status: 'idle' },
@@ -29,7 +54,15 @@ export const api = {
     // Staff
     getStaff: async (): Promise<Staff[]> => {
         await delay();
-        return storage.get<Staff[]>(KEYS.STAFF) || INITIAL_DATA.STAFF;
+        const stored = storage.get<Staff[]>(KEYS.STAFF) || [];
+        // Merge initial staff if not already in storage by ID
+        const merged = [...stored];
+        INITIAL_DATA.STAFF.forEach(initialStaff => {
+            if (!merged.find(s => s.id === initialStaff.id)) {
+                merged.push(initialStaff);
+            }
+        });
+        return merged;
     },
 
     createStaff: async (staff: Omit<Staff, 'id'>): Promise<void> => {

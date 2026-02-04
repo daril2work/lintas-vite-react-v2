@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { MainLayout } from './layouts/MainLayout';
 import { DashboardPage } from './pages/DashboardPage';
 import { IntakePage } from './pages/IntakePage';
@@ -11,26 +11,48 @@ import { ReportsPage } from './pages/ReportsPage';
 import { WardSendPage } from './pages/WardSendPage';
 import { WardReceivePage } from './pages/WardReceivePage';
 import { WardRequestPage } from './pages/WardRequestPage';
+import { LandingPage } from './pages/LandingPage';
+import { LoginPage } from './pages/LoginPage';
+import { AuthProvider, useAuth } from './context/AuthContext';
+
+const ProtectedRoute: React.FC<{ children: React.ReactNode, allowedRoles?: string[] }> = ({ children, allowedRoles }) => {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) return <div className="min-h-screen bg-slate-900 flex items-center justify-center text-white">Loading...</div>;
+  if (!user) return <Navigate to="/login" replace />;
+  if (allowedRoles && !allowedRoles.includes(user.role)) {
+    // If nurse tries to access something restricted, send back to their home
+    if (user.role === 'nurse') return <Navigate to="/ward/send" replace />;
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <>{children}</>;
+};
 
 function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route element={<MainLayout />}>
-          <Route path="/" element={<DashboardPage />} />
-          <Route path="/intake" element={<IntakePage />} />
-          <Route path="/washing" element={<WashingPage />} />
-          <Route path="/packing" element={<PackingPage />} />
-          <Route path="/sterilizing" element={<SterilizingPage />} />
-          <Route path="/distribution" element={<DistributionPage />} />
-          <Route path="/ward/send" element={<WardSendPage />} />
-          <Route path="/ward/receive" element={<WardReceivePage />} />
-          <Route path="/ward/request" element={<WardRequestPage />} />
-          <Route path="/admin" element={<MasterDataPage />} />
-          <Route path="/reports" element={<ReportsPage />} />
-        </Route>
-      </Routes>
-    </BrowserRouter>
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/login" element={<LoginPage />} />
+
+          <Route element={<MainLayout />}>
+            <Route path="/dashboard" element={<ProtectedRoute allowedRoles={['admin', 'operator', 'nurse']}><DashboardPage /></ProtectedRoute>} />
+            <Route path="/intake" element={<ProtectedRoute allowedRoles={['admin', 'operator']}><IntakePage /></ProtectedRoute>} />
+            <Route path="/washing" element={<ProtectedRoute allowedRoles={['admin', 'operator']}><WashingPage /></ProtectedRoute>} />
+            <Route path="/packing" element={<ProtectedRoute allowedRoles={['admin', 'operator']}><PackingPage /></ProtectedRoute>} />
+            <Route path="/sterilizing" element={<ProtectedRoute allowedRoles={['admin', 'operator']}><SterilizingPage /></ProtectedRoute>} />
+            <Route path="/distribution" element={<ProtectedRoute allowedRoles={['admin', 'operator']}><DistributionPage /></ProtectedRoute>} />
+            <Route path="/ward/send" element={<ProtectedRoute allowedRoles={['admin', 'nurse']}><WardSendPage /></ProtectedRoute>} />
+            <Route path="/ward/receive" element={<ProtectedRoute allowedRoles={['admin', 'nurse']}><WardReceivePage /></ProtectedRoute>} />
+            <Route path="/ward/request" element={<ProtectedRoute allowedRoles={['admin', 'nurse']}><WardRequestPage /></ProtectedRoute>} />
+            <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><MasterDataPage /></ProtectedRoute>} />
+            <Route path="/reports" element={<ProtectedRoute allowedRoles={['admin']}><ReportsPage /></ProtectedRoute>} />
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
   );
 }
 
