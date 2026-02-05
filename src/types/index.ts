@@ -42,10 +42,13 @@ export interface WorkflowLog {
 
 export interface ToolRequest {
     id: string;
-    toolName: string;
-    toolCode?: string;
-    requestingRoom: string;
-    status: 'pending' | 'fulfilled' | 'unavailable';
+    ward: string;
+    items: { id: string; name: string; quantity: number }[];
+    priority: 'normal' | 'urgent';
+    status: 'pending' | 'in-progress' | 'fulfilled' | 'unavailable';
+    patientRm?: string;
+    doctorName?: string;
+    requiredDate?: string;
     timestamp: string;
     notes?: string;
 }

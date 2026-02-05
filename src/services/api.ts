@@ -50,6 +50,23 @@ const INITIAL_DATA = {
     ] as ToolSet[],
 };
 
+export const MASTER_DATA = {
+    DEPARTMENTS: ['CSSD', 'IGD', 'ICU', 'OK (Bedah)', 'Poli Umum', 'Poli Gigi', 'Logistik'],
+    CATEGORIES: ['Bedah', 'Ortopedi', 'Gigi', 'Umum', 'Lainnya'],
+    ROLES: ['admin', 'operator', 'nurse'],
+    MACHINE_TYPES: ['washer', 'sterilizer', 'plasma'],
+    WASHING_PROGRAMS: [
+        { id: 'standard', name: 'Standard Cycle', duration: 45, temp: 60 },
+        { id: 'heavy', name: 'Heavy Duty', duration: 60, temp: 90 },
+        { id: 'delicate', name: 'Delicate', duration: 30, temp: 40 },
+    ],
+    STERILIZATION_PROGRAMS: [
+        { id: 'p1', name: 'Standard 134°C', duration: 45, temp: 134, pressure: 2.1 },
+        { id: 'p2', name: 'Delicate 121°C', duration: 60, temp: 121, pressure: 1.1 },
+        { id: 'p3', name: 'Flash Cycle', duration: 20, temp: 134, pressure: 2.2 },
+    ]
+};
+
 export const api = {
     // Staff
     getStaff: async (): Promise<Staff[]> => {
@@ -130,7 +147,7 @@ export const api = {
         storage.set(KEYS.MACHINES, [newMachine, ...items]);
     },
 
-    updateMachineStatus: async (id: string, status: Machine['status'], meta?: { startTime?: string, duration?: number }): Promise<void> => {
+    updateMachineStatus: async (id: string, status: Machine['status'], meta?: { startTime?: string, duration?: number, progress?: number, timeRemaining?: string }): Promise<void> => {
         await delay();
         const items = storage.get<Machine[]>(KEYS.MACHINES) || INITIAL_DATA.MACHINES;
         const updated = items.map(m => m.id === id ? { ...m, status, ...meta } : m);
@@ -168,6 +185,14 @@ export const api = {
         return storage.get<ToolRequest[]>(KEYS.REQUESTS) || [];
     },
 
+    getEfficiency: async (): Promise<number> => {
+        await delay();
+        const logs = storage.get<WorkflowLog[]>(KEYS.LOGS) || [];
+        if (logs.length === 0) return 0;
+        // Simple logic: total completed tools today vs yesterday (mock)
+        return 92.5;
+    },
+
     createRequest: async (request: Omit<ToolRequest, 'id' | 'timestamp' | 'status'>): Promise<void> => {
         await delay();
         const requests = storage.get<ToolRequest[]>(KEYS.REQUESTS) || [];
@@ -185,5 +210,16 @@ export const api = {
         const requests = storage.get<ToolRequest[]>(KEYS.REQUESTS) || [];
         const updated = requests.map(req => req.id === id ? { ...req, status } : req);
         storage.set(KEYS.REQUESTS, updated);
+    },
+
+    // Master Data Getters (Fase 1)
+    getDepartments: async (): Promise<string[]> => {
+        await delay();
+        return MASTER_DATA.DEPARTMENTS;
+    },
+
+    getCategories: async (): Promise<string[]> => {
+        await delay();
+        return MASTER_DATA.CATEGORIES;
     }
 };

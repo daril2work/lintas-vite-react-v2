@@ -5,12 +5,18 @@ import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Waves, Play, Info, AlertTriangle, Monitor } from 'lucide-react';
 import { cn } from '../utils/cn';
+import { useAuth } from '../context/AuthContext';
+
+import { MASTER_DATA } from '../services/api';
 
 export const WashingPage = () => {
+    const { user } = useAuth();
     const queryClient = useQueryClient();
     const [selectedMachine, setSelectedMachine] = useState<string | null>(null);
     const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
-    const [program, setProgram] = useState<'standard' | 'heavy' | 'delicate'>('standard');
+    const [programId, setProgramId] = useState('standard');
+
+    const activeProgram = MASTER_DATA.WASHING_PROGRAMS.find(p => p.id === programId) || MASTER_DATA.WASHING_PROGRAMS[0];
 
     // Force re-render for timer
     const [, setTick] = useState(0);
@@ -22,9 +28,19 @@ export const WashingPage = () => {
 
     const { data: machines } = useQuery({ queryKey: ['machines'], queryFn: api.getMachines });
     const { data: inventory } = useQuery({ queryKey: ['inventory'], queryFn: api.getInventory });
+    const { data: logs } = useQuery({ queryKey: ['logs'], queryFn: api.getLogs });
 
     const washerMachines = machines?.filter(m => m.type === 'washer') || [];
     const dirtyItems = inventory?.filter(item => item.status === 'dirty') || [];
+
+    // Helper to find origin from logs
+    const getItemOrigin = (toolId: string) => {
+        const intakeLog = logs?.find(l => l.toolSetId === toolId && l.action.includes('Penerimaan dari'));
+        if (!intakeLog) return 'Unit Umum';
+        // Extract "Penerimaan dari [Ruangan]"
+        const match = intakeLog.action.match(/Penerimaan dari (.*) -/);
+        return match ? match[1] : 'Unit';
+    };
 
     const getRemainingTime = (m: typeof washerMachines[0]) => {
         if (m.status !== 'running' || !m.startTime || !m.duration) return null;
@@ -61,9 +77,13 @@ export const WashingPage = () => {
     const startWashingMutation = useMutation({
         mutationFn: async () => {
             if (!selectedMachine) return;
+            const duration = activeProgram.duration;
 
-            // 1. Update machine status to running
-            await api.updateMachineStatus(selectedMachine, 'running');
+            // 1. Update machine status to running with meta
+            await api.updateMachineStatus(selectedMachine, 'running', {
+                startTime: new Date().toISOString(),
+                duration
+            });
 
             // 2. Update status of selected items
             await api.batchUpdateToolStatus(Array.from(selectedItems), 'washing');
@@ -71,15 +91,16 @@ export const WashingPage = () => {
             // 3. Log the action
             await api.addLog({
                 toolSetId: Array.from(selectedItems)[0], // Link to first item for ref
-                action: 'Start Washing',
-                operatorId: 'system-admin',
+                action: `Mulai Cuci (${activeProgram.name.toUpperCase()})`,
+                operatorId: user?.name || 'Operator',
                 machineId: selectedMachine,
-                notes: `Started ${program} cycle with ${selectedItems.size} items.`
+                notes: `Memulai siklus ${activeProgram.name} dengan ${selectedItems.size} alat.`
             });
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['inventory'] });
             queryClient.invalidateQueries({ queryKey: ['machines'] });
+            queryClient.invalidateQueries({ queryKey: ['logs'] });
             setSelectedMachine(null);
             setSelectedItems(new Set());
         },
@@ -208,7 +229,7 @@ export const WashingPage = () => {
                                             </td>
                                             <td className="px-6 py-4 font-bold text-slate-900">{item.name}</td>
                                             <td className="px-6 py-4 font-mono text-xs text-slate-500">{item.barcode}</td>
-                                            <td className="px-6 py-4 text-slate-600">Bedah Sentral</td>
+                                            <td className="px-6 py-4 text-slate-600 font-bold">{getItemOrigin(item.id)}</td>
                                             <td className="px-6 py-4">
                                                 <span className="flex items-center gap-1.5 text-accent-rose font-bold">
                                                     <AlertTriangle size={14} />
@@ -246,18 +267,18 @@ export const WashingPage = () => {
                             <div className="space-y-3">
                                 <p className="text-[10px] uppercase font-bold text-slate-500 tracking-widest">Washing Program</p>
                                 <div className="grid grid-cols-3 gap-2">
-                                    {(['standard', 'heavy', 'delicate'] as const).map(p => (
+                                    {MASTER_DATA.WASHING_PROGRAMS.map(p => (
                                         <button
-                                            key={p}
-                                            onClick={() => setProgram(p)}
+                                            key={p.id}
+                                            onClick={() => setProgramId(p.id)}
                                             className={cn(
                                                 "py-2 rounded-lg text-[10px] font-bold uppercase transition-all border",
-                                                program === p
+                                                programId === p.id
                                                     ? "bg-accent-indigo border-accent-indigo text-white shadow-lg"
                                                     : "bg-transparent border-slate-700 text-slate-400 hover:border-slate-500"
                                             )}
                                         >
-                                            {p}
+                                            {p.name.split(' ')[0]}
                                         </button>
                                     ))}
                                 </div>
@@ -270,7 +291,11 @@ export const WashingPage = () => {
                                 </div>
                                 <div className="flex justify-between items-center text-xs">
                                     <span className="text-slate-400">Estimasi Waktu</span>
-                                    <span className="font-bold">{program === 'heavy' ? '60' : program === 'delicate' ? '30' : '45'} Menit</span>
+                                    <span className="font-bold">{activeProgram.duration} Menit</span>
+                                </div>
+                                <div className="flex justify-between items-center text-xs text-accent-indigo">
+                                    <span className="text-slate-400">Target Suhu</span>
+                                    <span className="font-bold">{activeProgram.temp}°C</span>
                                 </div>
                             </div>
 

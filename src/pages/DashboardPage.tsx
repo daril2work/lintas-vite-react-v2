@@ -10,8 +10,7 @@ import {
     TrendingUp,
     AlertCircle,
     Activity,
-    ArrowRight,
-    Info
+    ArrowRight
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { Button } from '../components/ui/Button';
@@ -20,6 +19,26 @@ export const DashboardPage = () => {
     const { data: inventory } = useQuery({
         queryKey: ['inventory'],
         queryFn: api.getInventory,
+    });
+
+    const { data: machines } = useQuery({
+        queryKey: ['machines'],
+        queryFn: api.getMachines,
+    });
+
+    const { data: requests } = useQuery({
+        queryKey: ['requests'],
+        queryFn: api.getRequests,
+    });
+
+    const { data: staffList } = useQuery({
+        queryKey: ['staff'],
+        queryFn: api.getStaff,
+    });
+
+    const { data: efficiency } = useQuery({
+        queryKey: ['efficiency'],
+        queryFn: api.getEfficiency,
     });
 
     const stats = [
@@ -34,7 +53,7 @@ export const DashboardPage = () => {
         <div className="space-y-8">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl text-slate-900">Dashboard Utama</h1>
+                    <h1 className="text-3xl text-slate-900 font-black">Dashboard Utama</h1>
                     <p className="text-slate-500 mt-1">Pantau status alat medis dan antrian mesin secara real-time.</p>
                 </div>
                 <div className="flex gap-3">
@@ -44,7 +63,7 @@ export const DashboardPage = () => {
                         </div>
                         <div>
                             <p className="text-[10px] font-bold text-slate-400 uppercase">Efficiency</p>
-                            <p className="text-sm font-black">+12.5%</p>
+                            <p className="text-sm font-black text-slate-900">+{efficiency || 0}%</p>
                         </div>
                     </div>
                 </div>
@@ -76,50 +95,47 @@ export const DashboardPage = () => {
                 <div className="lg:col-span-2 space-y-6">
                     <h4 className="text-xs font-bold uppercase tracking-widest text-slate-400">Status Mesin Terkini</h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {[
-                            { name: 'Washer 01', type: 'WM-2024', status: 'Running', progress: 65, time: '15m left' },
-                            { name: 'Autoclave A', type: 'AC-HP-01', status: 'Idle', progress: 0, time: 'Ready' },
-                        ].map(machine => (
-                            <Card key={machine.name} className="hover:border-slate-200">
+                        {(machines || []).map(machine => (
+                            <Card key={machine.id} className="hover:border-slate-200">
                                 <div className="flex justify-between items-start mb-4">
                                     <div className="flex items-center gap-3">
                                         <div className={cn(
                                             "w-10 h-10 rounded-xl flex items-center justify-center",
-                                            machine.status === 'Running' ? "bg-accent-indigo/10 text-accent-indigo" : "bg-slate-100 text-slate-400"
+                                            machine.status === 'running' ? "bg-accent-indigo/10 text-accent-indigo" : "bg-slate-100 text-slate-400"
                                         )}>
                                             <Activity size={20} />
                                         </div>
                                         <div>
-                                            <p className="text-sm font-black">{machine.name}</p>
+                                            <p className="text-sm font-black capitalize">{machine.name}</p>
                                             <p className="text-[10px] text-slate-400 uppercase font-bold">{machine.type}</p>
                                         </div>
                                     </div>
                                     <span className={cn(
                                         "px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest",
-                                        machine.status === 'Running' ? "bg-accent-indigo text-white" : "bg-slate-100 text-slate-500"
+                                        machine.status === 'running' ? "bg-accent-indigo text-white" : "bg-slate-100 text-slate-500"
                                     )}>
                                         {machine.status}
                                     </span>
                                 </div>
-                                {machine.status === 'Running' && (
+                                {machine.status === 'running' && (
                                     <div className="space-y-2">
                                         <div className="flex justify-between text-[10px] font-bold uppercase">
                                             <span className="text-slate-400">Progress</span>
-                                            <span>{machine.time}</span>
+                                            <span>{(machine as any).timeRemaining || 'In Progress'}</span>
                                         </div>
                                         <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                            <div className="h-full bg-accent-indigo" style={{ width: `${machine.progress}%` }}></div>
+                                            <div className="h-full bg-accent-indigo animate-pulse" style={{ width: `${(machine as any).progress || 50}%` }}></div>
                                         </div>
                                     </div>
                                 )}
-                                {machine.status === 'Idle' && (
+                                {machine.status === 'idle' && (
                                     <p className="text-[10px] text-slate-400 italic">Siap untuk digunakan.</p>
                                 )}
                             </Card>
                         ))}
                     </div>
 
-                    <h4 className="text-xs font-bold uppercase tracking-widest text-slate-400">Permintaan Alat (Dari Unit)</h4>
+                    <h4 className="text-xs font-bold uppercase tracking-widest text-slate-400">Permintaan Alat (Antrian Ruangan)</h4>
                     <Card className="p-0 overflow-hidden">
                         <div className="overflow-x-auto">
                             <table className="w-full text-left">
@@ -128,36 +144,38 @@ export const DashboardPage = () => {
                                         <th className="px-6 py-4">Prioritas</th>
                                         <th className="px-6 py-4">Unit</th>
                                         <th className="px-6 py-4">Item</th>
-                                        <th className="px-6 py-4">Waktu</th>
                                         <th className="px-6 py-4">Status</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-50">
-                                    {[
-                                        { priority: 'Urgent', unit: 'IBS OK-05', item: 'Set Ortho A', time: '10:00', status: 'Pending' },
-                                        { priority: 'Normal', unit: 'IGD', item: 'Dressing Set', time: '10:45', status: 'In Queue' },
-                                        { priority: 'Schedule', unit: 'Poli Gigi', item: 'Basic Kit', time: '13:00', status: 'In Queue' },
-                                    ].map((req, i) => (
-                                        <tr key={i} className="text-sm">
+                                <tbody className="divide-y divide-slate-50 text-slate-900">
+                                    {(requests || []).slice(0, 5).map((req) => (
+                                        <tr key={req.id} className="text-sm">
                                             <td className="px-6 py-4">
                                                 <span className={cn(
                                                     "px-2 py-0.5 rounded-md text-[10px] font-black uppercase",
-                                                    req.priority === 'Urgent' ? "bg-accent-rose/10 text-accent-rose" : "bg-slate-100 text-slate-500"
+                                                    req.priority === 'urgent' ? "bg-accent-rose/10 text-accent-rose" : "bg-slate-100 text-slate-500"
                                                 )}>
                                                     {req.priority}
                                                 </span>
                                             </td>
-                                            <td className="px-6 py-4 font-bold">{req.unit}</td>
-                                            <td className="px-6 py-4 text-slate-600">{req.item}</td>
-                                            <td className="px-6 py-4 text-slate-500">{req.time}</td>
+                                            <td className="px-6 py-4 font-bold capitalize">{req.ward}</td>
                                             <td className="px-6 py-4">
-                                                <div className="flex items-center gap-2">
-                                                    <div className="w-2 h-2 rounded-full bg-accent-amber animate-pulse"></div>
-                                                    <span className="text-xs font-bold">{req.status}</span>
+                                                <div className="flex flex-wrap gap-1">
+                                                    {req.items.map((it, idx) => (
+                                                        <span key={idx} className="bg-slate-100 px-1.5 py-0.5 rounded text-[10px]">{it.name}</span>
+                                                    ))}
                                                 </div>
+                                            </td>
+                                            <td className="px-6 py-4 uppercase font-black text-[10px]">
+                                                {req.status}
                                             </td>
                                         </tr>
                                     ))}
+                                    {(!requests || requests.length === 0) && (
+                                        <tr>
+                                            <td colSpan={4} className="px-6 py-8 text-center text-slate-400 italic text-sm">Tidak ada antrian permintaan.</td>
+                                        </tr>
+                                    )}
                                 </tbody>
                             </table>
                         </div>
@@ -173,40 +191,31 @@ export const DashboardPage = () => {
                                 <AlertCircle className="text-accent-amber shrink-0" size={20} />
                                 <div>
                                     <p className="text-xs font-bold mb-1">Cek Maintenance</p>
-                                    <p className="text-[10px] text-slate-400 leading-relaxed">Autoclave B dijadwalkan kalibrasi besok jam 08:00 WIB.</p>
-                                </div>
-                            </div>
-                            <div className="flex gap-4 p-4 bg-slate-800/50 rounded-2xl border border-slate-700">
-                                <Info className="text-accent-indigo shrink-0" size={20} />
-                                <div>
-                                    <p className="text-xs font-bold mb-1">Update Stok Packing</p>
-                                    <p className="text-[10px] text-slate-400 leading-relaxed">Persediaan Pouches ukuran 5x10cm menipis.</p>
+                                    <p className="text-[10px] text-slate-400 leading-relaxed">Autoclave 01 dijadwalkan kalibrasi rutin minggu ini.</p>
                                 </div>
                             </div>
                         </div>
                     </Card>
 
                     <Card>
-                        <h4 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-6">Staff Bertugas</h4>
+                        <h4 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-6">Staff Terdaftar</h4>
                         <div className="space-y-4">
-                            {[
-                                { name: 'Budi Santoso', role: 'Supervisor', shift: 'Pagi' },
-                                { name: 'Siti Aminah', role: 'Operator', shift: 'Pagi' },
-                                { name: 'Andi Wijaya', role: 'Logistik', shift: 'Pagi' },
-                            ].map(staff => (
-                                <div key={staff.name} className="flex items-center gap-4">
+                            {(staffList || []).slice(0, 5).map(staff => (
+                                <div key={staff.id} className="flex items-center gap-4">
                                     <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 uppercase font-black text-xs">
                                         {staff.name.charAt(0)}
                                     </div>
                                     <div className="flex-1">
                                         <p className="text-sm font-black text-slate-900">{staff.name}</p>
-                                        <p className="text-[10px] text-slate-500 uppercase font-bold tracking-widest">{staff.role} • {staff.shift}</p>
+                                        <p className="text-[10px] text-slate-500 uppercase font-bold tracking-widest">{staff.role} • {staff.department}</p>
                                     </div>
                                     <div className="w-2 h-2 rounded-full bg-accent-emerald"></div>
                                 </div>
                             ))}
                         </div>
-                        <Button variant="secondary" className="w-full mt-6 text-xs uppercase tracking-widest h-10">Lihat Semua Staff</Button>
+                        <a href="/admin">
+                            <Button variant="secondary" className="w-full mt-6 text-xs uppercase tracking-widest h-10">Manajemen Staff</Button>
+                        </a>
                     </Card>
                 </div>
             </div>

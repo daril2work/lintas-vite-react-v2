@@ -2,6 +2,7 @@ import { Bell, Search, Menu as MenuIcon } from 'lucide-react';
 import { useUIStore } from '../../store';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../services/api';
+import { APP_CONFIG } from '../../constants/config';
 
 export const Header = () => {
     const { toggleSidebar } = useUIStore();
@@ -12,6 +13,12 @@ export const Header = () => {
     });
 
     const pendingCount = requests?.filter(r => r.status === 'pending').length || 0;
+
+    // Indonesian Date Format
+    const now = new Date();
+    const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+    const dateString = `${days[now.getDay()]}, ${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`;
 
     return (
         <header className="h-20 bg-white/80 backdrop-blur-md border-b border-slate-100 sticky top-0 z-40 px-8 flex items-center justify-between">
@@ -43,8 +50,8 @@ export const Header = () => {
                 </button>
                 <div className="h-10 w-px bg-slate-100 mx-2"></div>
                 <div className="flex flex-col items-end">
-                    <span className="text-sm font-black text-slate-900">Rabu, 03 Feb 2026</span>
-                    <span className="text-[10px] uppercase font-bold tracking-widest text-accent-indigo">System Online</span>
+                    <span className="text-sm font-black text-slate-900">{dateString}</span>
+                    <span className="text-[10px] uppercase font-bold tracking-widest text-accent-indigo">{APP_CONFIG.SYSTEM_STATUS}</span>
                 </div>
             </div>
         </header>

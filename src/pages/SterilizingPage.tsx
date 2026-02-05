@@ -5,12 +5,18 @@ import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Settings, Thermometer, ShieldCheck, Zap, Timer, Activity } from 'lucide-react';
 import { cn } from '../utils/cn';
+import { useAuth } from '../context/AuthContext';
+
+import { MASTER_DATA } from '../services/api';
 
 export const SterilizingPage = () => {
+    const { user } = useAuth();
     const queryClient = useQueryClient();
     const [selectedMachine, setSelectedMachine] = useState<string | null>(null);
     const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
-    const [program, setProgram] = useState<'universal' | 'rubber' | 'bowie'>('universal');
+    const [programId, setProgramId] = useState('p1');
+
+    const activeProgram = MASTER_DATA.STERILIZATION_PROGRAMS.find(p => p.id === programId) || MASTER_DATA.STERILIZATION_PROGRAMS[0];
     const [, setTick] = useState(0);
 
     useEffect(() => {
@@ -60,7 +66,7 @@ export const SterilizingPage = () => {
     const startMutation = useMutation({
         mutationFn: async () => {
             if (!selectedMachine) return;
-            const duration = program === 'universal' ? 45 : program === 'rubber' ? 60 : 15;
+            const duration = activeProgram.duration;
 
             // Start Machine
             await api.updateMachineStatus(selectedMachine, 'running', {
@@ -72,9 +78,9 @@ export const SterilizingPage = () => {
             await api.addLog({
                 toolSetId: Array.from(selectedItems)[0] || 'batch',
                 action: 'Start Sterilization',
-                operatorId: 'system-admin',
+                operatorId: user?.name || 'Operator',
                 machineId: selectedMachine,
-                notes: `Started ${program} cycle (${duration}m) with ${selectedItems.size} items.`
+                notes: `Started ${activeProgram.name} cycle (${duration}m) with ${selectedItems.size} items.`
             });
         },
         onSuccess: () => {
@@ -101,7 +107,7 @@ export const SterilizingPage = () => {
             await api.addLog({
                 toolSetId: 'batch',
                 action: 'Finish Sterilization',
-                operatorId: 'system-admin',
+                operatorId: user?.name || 'Operator',
                 machineId: machineId,
                 notes: `Cycle completed. ${itemsToUpdate.length} items marked sterile.`
             });
@@ -204,9 +210,9 @@ export const SterilizingPage = () => {
                         <h4 className="text-xs font-bold uppercase tracking-widest text-slate-400">Parameter Real-time</h4>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             {[
-                                { label: 'Temperature', value: selectedMachine ? (program === 'universal' ? '134°C' : '121°C') : '---', icon: Thermometer, color: 'text-rose-500' },
-                                { label: 'Pressure', value: selectedMachine ? '2.1 Bar' : '---', icon: Activity, color: 'text-indigo-500' },
-                                { label: 'Timer', value: '45:00', icon: Timer, color: 'text-amber-500' },
+                                { label: 'Temperature', value: selectedMachine ? `${activeProgram.temp}°C` : '---', icon: Thermometer, color: 'text-rose-500' },
+                                { label: 'Pressure', value: selectedMachine ? `${activeProgram.pressure} Bar` : '---', icon: Activity, color: 'text-indigo-500' },
+                                { label: 'Timer', value: `${activeProgram.duration}:00`, icon: Timer, color: 'text-amber-500' },
                             ].map(param => (
                                 <Card key={param.label} className="p-4 flex items-center gap-4">
                                     <div className={cn("w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center", param.color)}>
@@ -241,23 +247,19 @@ export const SterilizingPage = () => {
                                 <div className="space-y-2">
                                     <span className="text-xs text-slate-500">Program</span>
                                     <div className="grid grid-cols-3 gap-2">
-                                        {[
-                                            { id: 'universal', label: '134°C', sub: 'Univ' },
-                                            { id: 'rubber', label: '121°C', sub: 'Rubber' },
-                                            { id: 'bowie', label: 'Test', sub: 'Bowie' }
-                                        ].map(p => (
+                                        {MASTER_DATA.STERILIZATION_PROGRAMS.map(p => (
                                             <button
                                                 key={p.id}
-                                                onClick={() => setProgram(p.id as any)}
+                                                onClick={() => setProgramId(p.id)}
                                                 className={cn(
                                                     "p-2 rounded-lg text-center transition-all border",
-                                                    program === p.id
+                                                    programId === p.id
                                                         ? "bg-accent-emerald text-white border-accent-emerald"
                                                         : "bg-slate-800 text-slate-400 border-slate-700 hover:border-slate-600"
                                                 )}
                                             >
-                                                <div className="text-sm font-black">{p.label}</div>
-                                                <div className="text-[9px] uppercase">{p.sub}</div>
+                                                <div className="text-sm font-black">{p.temp}°C</div>
+                                                <div className="text-[9px] uppercase">{p.name.split(' ')[0]}</div>
                                             </button>
                                         ))}
                                     </div>

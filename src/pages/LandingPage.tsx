@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
+import { APP_CONFIG } from '../constants/config';
 
 export const LandingPage: React.FC = () => {
     const navigate = useNavigate();
@@ -48,7 +49,7 @@ export const LandingPage: React.FC = () => {
                     Sistem Layanan Integrasi Sterilisasi (LINTAS)
                 </p>
                 <h1 className="text-4xl md:text-6xl lg:text-7xl font-black tracking-tight text-[#22d3ee] drop-shadow-xl">
-                    Rumah Sakit Menur Provinsi Jawa Timur
+                    {APP_CONFIG.HOSPITAL_NAME}
                 </h1>
 
                 <div className="pt-12">
@@ -65,7 +66,7 @@ export const LandingPage: React.FC = () => {
             {/* Bottom Credits */}
             <div className="absolute bottom-8 left-0 right-0 text-center">
                 <p className="text-slate-500 text-xs font-medium uppercase tracking-[0.2em]">
-                    © 2026 Lintas V2 • Intelligent CSSD Management
+                    {APP_CONFIG.APP_COPYRIGHT} • Intelligent CSSD Management
                 </p>
             </div>
         </div>

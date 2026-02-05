@@ -7,6 +7,9 @@ import { Input } from '../components/ui/Input';
 import { PackageSearch, Camera, History, AlertCircle, Trash2, CheckCircle2, AlertTriangle, Box, X } from 'lucide-react';
 import { cn } from '../utils/cn';
 import type { ToolSet } from '../types';
+import { useAuth } from '../context/AuthContext';
+import { APP_CONFIG } from '../constants/config';
+import { MASTER_DATA } from '../services/api';
 
 interface BasketItem extends ToolSet {
     condition: 'good' | 'damaged';
@@ -15,19 +18,32 @@ interface BasketItem extends ToolSet {
     origin?: string;
 }
 
-const DEPARTMENTS = ['IGD', 'OK (Bedah)', 'Poli Gigi', 'Poli Umum', 'ICU', 'Radiologi'];
-
 export const IntakePage = () => {
+    const { user } = useAuth();
     const [search, setSearch] = useState('');
     const [basket, setBasket] = useState<BasketItem[]>([]);
     const [isDeliveryModalOpen, setIsDeliveryModalOpen] = useState(false);
-    const [selectedOrigin, setSelectedOrigin] = useState(DEPARTMENTS[0]);
+    const [selectedOrigin, setSelectedOrigin] = useState('');
     const [selectedTools, setSelectedTools] = useState<string[]>([]);
     const queryClient = useQueryClient();
 
     const { data: inventory, isLoading } = useQuery({
         queryKey: ['inventory'],
         queryFn: api.getInventory,
+    });
+
+    const { data: staff } = useQuery({
+        queryKey: ['staff'],
+        queryFn: api.getStaff,
+    });
+
+    const departments = Array.from(new Set(staff?.map(s => s.department) || []));
+
+    // Auto-select first department when data loads
+    useState(() => {
+        if (departments.length > 0 && !selectedOrigin) {
+            setSelectedOrigin(departments[0]);
+        }
     });
 
     const intakeMutation = useMutation({
@@ -37,7 +53,7 @@ export const IntakePage = () => {
                 await api.addLog({
                     toolSetId: item.id,
                     action: `Penerimaan dari ${item.origin || 'Unit'} - Kondisi: ${item.condition === 'good' ? 'Lengkap' : 'Rusak'}`,
-                    operatorId: '1', // Hardcoded for simulation
+                    operatorId: user?.name || 'Operator', // Use auth user
                     notes: item.condition === 'damaged' ? 'Alat dilaporkan bermasalah saat diterima.' : undefined,
                     photo: item.photoUrl
                 });
@@ -306,7 +322,7 @@ export const IntakePage = () => {
                             <div className="space-y-2">
                                 <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest ml-1">Ruangan Asal</label>
                                 <div className="flex flex-wrap gap-2">
-                                    {DEPARTMENTS.map(dept => (
+                                    {departments.map(dept => (
                                         <button
                                             key={dept}
                                             onClick={() => setSelectedOrigin(dept)}

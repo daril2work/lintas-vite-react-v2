@@ -5,12 +5,23 @@ import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Box, ClipboardCheck, CheckCircle2, Search, AlertCircle } from 'lucide-react';
 
-const DEPARTMENTS = ['IGD', 'OK (Bedah)', 'Poli Gigi', 'Poli Umum', 'ICU', 'Radiologi'];
-
 export const WardReceivePage = () => {
-    const [selectedRoom, setSelectedRoom] = useState(DEPARTMENTS[0]);
-    const [search, setSearch] = useState('');
     const queryClient = useQueryClient();
+
+    const { data: departments = [] } = useQuery({
+        queryKey: ['departments'],
+        queryFn: api.getDepartments,
+    });
+
+    const [selectedRoom, setSelectedRoom] = useState('');
+    const [search, setSearch] = useState('');
+
+    // Set initial department
+    useState(() => {
+        if (departments.length > 0 && !selectedRoom) {
+            setSelectedRoom(departments[0]);
+        }
+    });
 
     const { data: inventory, isLoading } = useQuery({
         queryKey: ['inventory'],
@@ -50,7 +61,7 @@ export const WardReceivePage = () => {
                         onChange={(e) => setSelectedRoom(e.target.value)}
                         className="text-sm font-bold text-accent-emerald bg-transparent focus:outline-none"
                     >
-                        {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+                        {departments.map(d => <option key={d} value={d}>{d}</option>)}
                     </select>
                 </div>
             </div>

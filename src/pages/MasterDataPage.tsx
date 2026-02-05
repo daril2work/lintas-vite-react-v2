@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '../services/api';
+import { api, MASTER_DATA } from '../services/api';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -15,14 +15,14 @@ export const MasterDataPage = () => {
     const [formData, setFormData] = useState({
         name: '',
         barcode: '',
-        category: 'Bedah',
+        category: MASTER_DATA.CATEGORIES[0],
         quantity: 1,
         // Staff fields
         employeeId: '',
-        department: 'CSSD',
-        role: 'operator',
+        department: MASTER_DATA.DEPARTMENTS[0],
+        role: MASTER_DATA.ROLES[0],
         // Machine fields
-        type: 'washer'
+        type: MASTER_DATA.MACHINE_TYPES[0]
     });
 
     // Edit & delete states
@@ -99,9 +99,9 @@ export const MasterDataPage = () => {
 
     const resetForm = () => {
         setFormData({
-            name: '', barcode: '', category: 'Bedah', quantity: 1,
-            employeeId: '', department: 'CSSD', role: 'operator',
-            type: 'washer'
+            name: '', barcode: '', category: MASTER_DATA.CATEGORIES[0], quantity: 1,
+            employeeId: '', department: MASTER_DATA.DEPARTMENTS[0], role: MASTER_DATA.ROLES[0],
+            type: MASTER_DATA.MACHINE_TYPES[0]
         });
     };
 
@@ -488,10 +488,7 @@ export const MasterDataPage = () => {
                                             value={formData.category}
                                             onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                                         >
-                                            <option>Bedah</option>
-                                            <option>Ortopedi</option>
-                                            <option>Gigi</option>
-                                            <option>Obsgyn</option>
+                                            {MASTER_DATA.CATEGORIES.map(c => <option key={c}>{c}</option>)}
                                         </select>
                                     </div>
                                 </>
@@ -526,9 +523,7 @@ export const MasterDataPage = () => {
                                                 value={formData.department}
                                                 onChange={(e) => setFormData({ ...formData, department: e.target.value })}
                                             >
-                                                <option>CSSD</option>
-                                                <option>OK (Kamar Operasi)</option>
-                                                <option>Rawat Inap</option>
+                                                {MASTER_DATA.DEPARTMENTS.map(d => <option key={d}>{d}</option>)}
                                             </select>
                                         </div>
                                         <div className="space-y-1.5">
@@ -538,8 +533,7 @@ export const MasterDataPage = () => {
                                                 value={formData.role}
                                                 onChange={(e) => setFormData({ ...formData, role: e.target.value })}
                                             >
-                                                <option value="operator">Operator</option>
-                                                <option value="admin">Admin</option>
+                                                {MASTER_DATA.ROLES.map(r => <option key={r} value={r}>{r.toUpperCase()}</option>)}
                                             </select>
                                         </div>
                                     </div>
@@ -565,9 +559,11 @@ export const MasterDataPage = () => {
                                             value={formData.type}
                                             onChange={(e) => setFormData({ ...formData, type: e.target.value })}
                                         >
-                                            <option value="washer">Washer Disinfector</option>
-                                            <option value="sterilizer">Steam Sterilizer (Autoclave)</option>
-                                            <option value="plasma">Plasma Sterilizer</option>
+                                            {MASTER_DATA.MACHINE_TYPES.map(m => (
+                                                <option key={m} value={m}>
+                                                    {m === 'washer' ? 'Washer Disinfector' : m === 'sterilizer' ? 'Steam Sterilizer (Autoclave)' : 'Plasma Sterilizer'}
+                                                </option>
+                                            ))}
                                         </select>
                                     </div>
                                 </>

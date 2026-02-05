@@ -5,8 +5,10 @@ import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Box, Printer, CheckSquare, ListChecks, QrCode, Info } from 'lucide-react';
 import { cn } from '../utils/cn';
+import { useAuth } from '../context/AuthContext';
 
 export const PackingPage = () => {
+    const { user } = useAuth();
     const queryClient = useQueryClient();
     const [selectedItem, setSelectedItem] = useState<string | null>(null);
     const [checkedItems, setCheckedItems] = useState<Set<number>>(new Set());
@@ -25,7 +27,7 @@ export const PackingPage = () => {
             await api.addLog({
                 toolSetId: id,
                 action: 'Packing & Labeling',
-                operatorId: 'system-admin',
+                operatorId: user?.name || 'Operator',
                 notes: `Packed with valid checklist. Expire: ${getExpireDate()}`
             });
         },
@@ -261,9 +263,9 @@ export const PackingPage = () => {
                                 </div>
 
                                 <div className="flex justify-between items-end border-t border-slate-100 pt-2">
-                                    <div className="text-[9px] text-slate-500 font-mono">
+                                    <div className="text-[9px] text-slate-500 font-mono text-left">
                                         ID: {selectedTool.barcode}<br />
-                                        BY: SYSTEM-ADMIN
+                                        BY: {user?.name?.toUpperCase() || 'OPERATOR'}
                                     </div>
                                     <div className="w-4 h-4 rounded-full bg-accent-rose"></div>
                                 </div>

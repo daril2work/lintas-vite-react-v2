@@ -14,14 +14,24 @@ interface SendBasketItem extends ToolSet {
     photoUrl?: string;
 }
 
-const DEPARTMENTS = ['IGD', 'OK (Bedah)', 'Poli Gigi', 'Poli Umum', 'ICU', 'Radiologi'];
-
 export const WardSendPage = () => {
-    const [selectedOrigin, setSelectedOrigin] = useState(DEPARTMENTS[0]);
+    const queryClient = useQueryClient();
+
+    const { data: departments = [] } = useQuery({
+        queryKey: ['departments'],
+        queryFn: api.getDepartments,
+    });
+
+    const [selectedOrigin, setSelectedOrigin] = useState('');
     const [search, setSearch] = useState('');
     const [basket, setBasket] = useState<SendBasketItem[]>([]);
 
-    const queryClient = useQueryClient();
+    // Set initial department
+    useState(() => {
+        if (departments.length > 0 && !selectedOrigin) {
+            setSelectedOrigin(departments[0]);
+        }
+    });
 
     const { data: inventory, isLoading } = useQuery({
         queryKey: ['inventory'],
@@ -84,7 +94,7 @@ export const WardSendPage = () => {
                         onChange={(e) => setSelectedOrigin(e.target.value)}
                         className="text-sm font-bold text-accent-indigo bg-transparent focus:outline-none"
                     >
-                        {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+                        {departments.map(d => <option key={d} value={d}>{d}</option>)}
                     </select>
                 </div>
             </div>

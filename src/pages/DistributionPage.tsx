@@ -134,18 +134,51 @@ export const DistributionPage = () => {
                                     >
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-4">
-                                                <div className="w-12 h-12 rounded-2xl bg-accent-indigo/10 text-accent-indigo flex items-center justify-center">
+                                                <div className={cn(
+                                                    "w-12 h-12 rounded-2xl flex items-center justify-center",
+                                                    req.priority === 'urgent' ? "bg-accent-rose/10 text-accent-rose" : "bg-accent-indigo/10 text-accent-indigo"
+                                                )}>
                                                     <ListTodo size={24} />
                                                 </div>
                                                 <div>
-                                                    <div className="flex items-center gap-2">
-                                                        <p className="font-bold text-slate-900">{req.toolName}</p>
-                                                        <span className="px-2 py-0.5 bg-slate-100 text-[8px] font-black rounded uppercase text-slate-500">#{req.toolCode || 'NO CODE'}</span>
+                                                    <div className="flex flex-wrap gap-2 mb-1">
+                                                        {req.items.map((item, idx) => (
+                                                            <span key={idx} className="px-2 py-0.5 bg-slate-100 text-[10px] font-bold rounded text-slate-700">
+                                                                {item.quantity}x {item.name}
+                                                            </span>
+                                                        ))}
                                                     </div>
-                                                    <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">{req.requestingRoom}</p>
+                                                    <p className="text-xs text-slate-500 font-black uppercase tracking-wider flex items-center gap-2">
+                                                        {req.ward}
+                                                        {req.priority === 'urgent' && (
+                                                            <span className="text-[8px] bg-accent-rose text-white px-1 rounded animate-pulse">URGENT</span>
+                                                        )}
+                                                    </p>
+                                                    {(req.patientRm || req.doctorName || req.requiredDate) && (
+                                                        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-2">
+                                                            {req.requiredDate && (
+                                                                <div className="flex flex-col">
+                                                                    <span className="text-[8px] uppercase font-bold text-slate-400">Dibutuhkan</span>
+                                                                    <span className="text-[10px] font-bold text-accent-indigo">{new Date(req.requiredDate).toLocaleDateString()}</span>
+                                                                </div>
+                                                            )}
+                                                            {req.patientRm && (
+                                                                <div className="flex flex-col">
+                                                                    <span className="text-[8px] uppercase font-bold text-slate-400">No. RM</span>
+                                                                    <span className="text-[10px] font-bold text-slate-700 font-mono">{req.patientRm}</span>
+                                                                </div>
+                                                            )}
+                                                            {req.doctorName && (
+                                                                <div className="flex flex-col">
+                                                                    <span className="text-[8px] uppercase font-bold text-slate-400">Dokter</span>
+                                                                    <span className="text-[10px] font-bold text-slate-700">{req.doctorName}</span>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
-                                            <div className="text-right">
+                                            <div className="text-right shrink-0">
                                                 <p className="text-[10px] font-bold text-slate-400 uppercase">{new Date(req.timestamp).toLocaleTimeString()}</p>
                                                 <div className="flex gap-2 mt-2">
                                                     <Button
@@ -180,9 +213,9 @@ export const DistributionPage = () => {
 
                             {selectedRequest && (
                                 <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
-                                    <h4 className="text-xs font-bold uppercase tracking-widest text-slate-400">Pilih Alat Steril Yang Sesuai</h4>
+                                    <h4 className="text-xs font-bold uppercase tracking-widest text-slate-400 text-center">Pilih Alat Steril Yang Sesuai Untuk Dikirim</h4>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        {sterileItems.filter(i => i.name.toLowerCase().includes(selectedReqObj?.toolName.toLowerCase() || '')).map(item => (
+                                        {sterileItems.map(item => (
                                             <Card
                                                 key={item.id}
                                                 className={cn(
@@ -202,12 +235,6 @@ export const DistributionPage = () => {
                                                 </div>
                                             </Card>
                                         ))}
-                                        {sterileItems.filter(i => i.name.toLowerCase().includes(selectedReqObj?.toolName.toLowerCase() || '')).length === 0 && (
-                                            <div className="col-span-full p-6 bg-accent-rose/5 border border-dashed border-accent-rose/20 rounded-2xl flex items-center gap-3 text-accent-rose">
-                                                <AlertCircle size={20} />
-                                                <p className="text-xs font-bold">Tidak ditemukan alat "{selectedReqObj?.toolName}" di inventaris steril.</p>
-                                            </div>
-                                        )}
                                     </div>
                                 </div>
                             )}
@@ -294,8 +321,8 @@ export const DistributionPage = () => {
                                     {staffList?.map(s => (
                                         <option key={s.id} value={s.name}>{s.name} ({s.department})</option>
                                     ))}
-                                    {selectedReqObj && !staffList?.find(s => s.name.includes(selectedReqObj.requestingRoom)) && (
-                                        <option value={`Staff ${selectedReqObj.requestingRoom}`}>Staff {selectedReqObj.requestingRoom}</option>
+                                    {selectedReqObj && !staffList?.find(s => s.department === selectedReqObj.ward) && (
+                                        <option value={`Staff ${selectedReqObj.ward}`}>Staff {selectedReqObj.ward}</option>
                                     )}
                                 </select>
                             </div>
@@ -305,7 +332,7 @@ export const DistributionPage = () => {
                                 <p className="text-sm font-black text-slate-900">{selectedItem ? selectedTool?.name : '-- Belum Dipilih --'}</p>
                                 <p className="text-[10px] text-slate-500 mt-1">
                                     {activeTab === 'requests' && selectedRequest
-                                        ? `Memenuhi Permintaan: ${selectedReqObj?.toolName} (${selectedReqObj?.requestingRoom})`
+                                        ? `Memenuhi Permintaan: ${selectedReqObj?.items.map(i => `${i.quantity}x ${i.name}`).join(', ')} (${selectedReqObj?.ward})`
                                         : 'Status: Sterile & Ready'}
                                 </p>
                             </div>
