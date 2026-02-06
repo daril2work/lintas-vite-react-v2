@@ -21,8 +21,8 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode, allowedRoles?: strin
   if (isLoading) return <div className="min-h-screen bg-slate-900 flex items-center justify-center text-white">Loading...</div>;
   if (!user) return <Navigate to="/login" replace />;
   if (allowedRoles && !allowedRoles.includes(user.role)) {
-    // If nurse tries to access something restricted, send back to their home
-    if (user.role === 'nurse') return <Navigate to="/ward/send" replace />;
+    // If operator_ruangan tries to access something restricted, send back to their home
+    if (user.role === 'operator_ruangan') return <Navigate to="/ward/send" replace />;
     return <Navigate to="/dashboard" replace />;
   }
 
@@ -38,15 +38,15 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
 
           <Route element={<MainLayout />}>
-            <Route path="/dashboard" element={<ProtectedRoute allowedRoles={['admin', 'operator', 'nurse']}><DashboardPage /></ProtectedRoute>} />
-            <Route path="/intake" element={<ProtectedRoute allowedRoles={['admin', 'operator']}><IntakePage /></ProtectedRoute>} />
-            <Route path="/washing" element={<ProtectedRoute allowedRoles={['admin', 'operator']}><WashingPage /></ProtectedRoute>} />
-            <Route path="/packing" element={<ProtectedRoute allowedRoles={['admin', 'operator']}><PackingPage /></ProtectedRoute>} />
-            <Route path="/sterilizing" element={<ProtectedRoute allowedRoles={['admin', 'operator']}><SterilizingPage /></ProtectedRoute>} />
-            <Route path="/distribution" element={<ProtectedRoute allowedRoles={['admin', 'operator']}><DistributionPage /></ProtectedRoute>} />
-            <Route path="/ward/send" element={<ProtectedRoute allowedRoles={['admin', 'nurse']}><WardSendPage /></ProtectedRoute>} />
-            <Route path="/ward/receive" element={<ProtectedRoute allowedRoles={['admin', 'nurse']}><WardReceivePage /></ProtectedRoute>} />
-            <Route path="/ward/request" element={<ProtectedRoute allowedRoles={['admin', 'nurse']}><WardRequestPage /></ProtectedRoute>} />
+            <Route path="/dashboard" element={<ProtectedRoute allowedRoles={['admin', 'operator_cssd', 'operator_ruangan']}><DashboardPage /></ProtectedRoute>} />
+            <Route path="/intake" element={<ProtectedRoute allowedRoles={['admin', 'operator_cssd']}><IntakePage /></ProtectedRoute>} />
+            <Route path="/washing" element={<ProtectedRoute allowedRoles={['admin', 'operator_cssd']}><WashingPage /></ProtectedRoute>} />
+            <Route path="/packing" element={<ProtectedRoute allowedRoles={['admin', 'operator_cssd']}><PackingPage /></ProtectedRoute>} />
+            <Route path="/sterilizing" element={<ProtectedRoute allowedRoles={['admin', 'operator_cssd']}><SterilizingPage /></ProtectedRoute>} />
+            <Route path="/distribution" element={<ProtectedRoute allowedRoles={['admin', 'operator_cssd']}><DistributionPage /></ProtectedRoute>} />
+            <Route path="/ward/send" element={<ProtectedRoute allowedRoles={['admin', 'operator_ruangan']}><WardSendPage /></ProtectedRoute>} />
+            <Route path="/ward/receive" element={<ProtectedRoute allowedRoles={['admin', 'operator_ruangan']}><WardReceivePage /></ProtectedRoute>} />
+            <Route path="/ward/request" element={<ProtectedRoute allowedRoles={['admin', 'operator_ruangan']}><WardRequestPage /></ProtectedRoute>} />
             <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><MasterDataPage /></ProtectedRoute>} />
             <Route path="/reports" element={<ProtectedRoute allowedRoles={['admin']}><ReportsPage /></ProtectedRoute>} />
           </Route>
