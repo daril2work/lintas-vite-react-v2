@@ -15,8 +15,8 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, onClos
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300">
-            <Card className="w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl border-white/20">
+        <div className="fixed inset-0 z-[100] flex justify-center items-start md:items-center p-4 md:p-8 bg-slate-900/60 backdrop-blur-md overflow-y-auto custom-scrollbar animate-in fade-in duration-300">
+            <Card className="w-full max-w-3xl my-auto overflow-hidden flex flex-col shadow-2xl border-white/20">
                 {/* Header */}
                 <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center shrink-0">
                     <div className="flex items-center gap-4">
