@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { Card } from '../components/ui/Card';
@@ -8,8 +8,6 @@ import { PackageSearch, Camera, History, AlertCircle, Trash2, CheckCircle2, Aler
 import { cn } from '../utils/cn';
 import type { ToolSet } from '../types';
 import { useAuth } from '../context/AuthContext';
-import { APP_CONFIG } from '../constants/config';
-import { MASTER_DATA } from '../services/api';
 
 interface BasketItem extends ToolSet {
     condition: 'good' | 'damaged';
@@ -40,15 +38,24 @@ export const IntakePage = () => {
     const departments = Array.from(new Set(staff?.map(s => s.department) || []));
 
     // Auto-select first department when data loads
-    useState(() => {
+    useEffect(() => {
         if (departments.length > 0 && !selectedOrigin) {
             setSelectedOrigin(departments[0]);
         }
-    });
+    }, [departments, selectedOrigin]);
+
+    const [showSuccess, setShowSuccess] = useState(false);
 
     const intakeMutation = useMutation({
         mutationFn: async (items: BasketItem[]) => {
             for (const item of items) {
+                // Security check: ensure item is not already in a CSSD process
+                const currentItem = inventory?.find(i => i.id === item.id);
+                if (currentItem?.status === 'washing' || currentItem?.status === 'sterilizing' || currentItem?.status === 'dirty') {
+                    console.warn(`Alat ${item.name} sedang dalam proses lain.`);
+                    continue;
+                }
+
                 await api.updateToolStatus(item.id, 'dirty');
                 await api.addLog({
                     toolSetId: item.id,
@@ -63,6 +70,8 @@ export const IntakePage = () => {
             queryClient.invalidateQueries({ queryKey: ['inventory'] });
             setBasket([]);
             setSearch('');
+            setShowSuccess(true);
+            setTimeout(() => setShowSuccess(false), 3000);
         },
     });
 
@@ -113,6 +122,17 @@ export const IntakePage = () => {
 
     return (
         <div className="space-y-8">
+            {showSuccess && (
+                <div className="fixed top-24 right-8 z-50 animate-in slide-in-from-right-full duration-300">
+                    <div className="bg-accent-indigo text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3">
+                        <CheckCircle2 size={24} />
+                        <div>
+                            <p className="font-black text-sm uppercase">Berhasil!</p>
+                            <p className="text-[10px] font-bold opacity-90">Alat telah diterima di sistem.</p>
+                        </div>
+                    </div>
+                </div>
+            )}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-3xl text-slate-900">Penerimaan Alat</h1>

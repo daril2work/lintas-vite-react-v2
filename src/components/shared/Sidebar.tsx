@@ -21,6 +21,7 @@ import { useUIStore } from '../../store';
 import { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { NavLink, useNavigate } from 'react-router-dom';
+import { APP_CONFIG } from '../../constants/config';
 
 const MENU_SECTIONS = [
     {
@@ -95,7 +96,10 @@ export const Sidebar = () => {
             <div className="p-8 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-accent-indigo flex items-center justify-center font-black text-xl">L</div>
-                    <span className="text-xl font-black tracking-tighter">LINTAS <span className="text-accent-amber">CSSD</span></span>
+                    <div className="flex flex-col">
+                        <span className="text-xl font-black tracking-tighter leading-none">LINTAS <span className="text-accent-amber">CSSD</span></span>
+                        <span className="text-[8px] font-bold tracking-[0.2em] text-slate-500 uppercase mt-1">Version {APP_CONFIG.APP_VERSION}</span>
+                    </div>
                 </div>
                 <button onClick={toggleSidebar} className="lg:hidden text-slate-400 hover:text-white">
                     <X size={24} />

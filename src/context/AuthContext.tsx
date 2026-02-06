@@ -12,8 +12,14 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [user, setUser] = useState<Staff | null>(() => {
-        const savedUser = localStorage.getItem('lintas_session');
-        return savedUser ? JSON.parse(savedUser) : null;
+        try {
+            const savedUser = localStorage.getItem('lintas_session');
+            return savedUser ? JSON.parse(savedUser) : null;
+        } catch (error) {
+            console.error('Failed to parse auth session:', error);
+            localStorage.removeItem('lintas_session');
+            return null;
+        }
     });
     const [isLoading, setIsLoading] = useState(false);
 

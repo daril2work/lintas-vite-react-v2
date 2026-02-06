@@ -92,6 +92,20 @@ export const api = {
         storage.set(KEYS.STAFF, [newStaff, ...items]);
     },
 
+    updateStaff: async (id: string, updates: Partial<Omit<Staff, 'id'>>): Promise<void> => {
+        await delay();
+        const items = storage.get<Staff[]>(KEYS.STAFF) || INITIAL_DATA.STAFF;
+        const updated = items.map(item => item.id === id ? { ...item, ...updates } : item);
+        storage.set(KEYS.STAFF, updated);
+    },
+
+    deleteStaff: async (id: string): Promise<void> => {
+        await delay();
+        const items = storage.get<Staff[]>(KEYS.STAFF) || INITIAL_DATA.STAFF;
+        const filtered = items.filter(item => item.id !== id);
+        storage.set(KEYS.STAFF, filtered);
+    },
+
     // Inventory
     getInventory: async (): Promise<ToolSet[]> => {
         await delay();
@@ -145,6 +159,20 @@ export const api = {
             status: 'idle',
         };
         storage.set(KEYS.MACHINES, [newMachine, ...items]);
+    },
+
+    updateMachine: async (id: string, updates: Partial<Omit<Machine, 'id'>>): Promise<void> => {
+        await delay();
+        const items = storage.get<Machine[]>(KEYS.MACHINES) || INITIAL_DATA.MACHINES;
+        const updated = items.map(item => item.id === id ? { ...item, ...updates } : item);
+        storage.set(KEYS.MACHINES, updated);
+    },
+
+    deleteMachine: async (id: string): Promise<void> => {
+        await delay();
+        const items = storage.get<Machine[]>(KEYS.MACHINES) || INITIAL_DATA.MACHINES;
+        const filtered = items.filter(item => item.id !== id);
+        storage.set(KEYS.MACHINES, filtered);
     },
 
     updateMachineStatus: async (id: string, status: Machine['status'], meta?: { startTime?: string, duration?: number, progress?: number, timeRemaining?: string }): Promise<void> => {

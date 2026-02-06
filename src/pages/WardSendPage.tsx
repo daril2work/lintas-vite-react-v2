@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { Card } from '../components/ui/Card';
@@ -7,6 +7,7 @@ import { Input } from '../components/ui/Input';
 import { Box, Send, PackageSearch, Trash2, Camera, AlertTriangle } from 'lucide-react';
 import { cn } from '../utils/cn';
 import type { ToolSet } from '../types';
+import { useAuth } from '../context/AuthContext';
 
 interface SendBasketItem extends ToolSet {
     condition: 'good' | 'damaged';
@@ -15,6 +16,7 @@ interface SendBasketItem extends ToolSet {
 }
 
 export const WardSendPage = () => {
+    const { user } = useAuth();
     const queryClient = useQueryClient();
 
     const { data: departments = [] } = useQuery({
@@ -27,11 +29,11 @@ export const WardSendPage = () => {
     const [basket, setBasket] = useState<SendBasketItem[]>([]);
 
     // Set initial department
-    useState(() => {
+    useEffect(() => {
         if (departments.length > 0 && !selectedOrigin) {
             setSelectedOrigin(departments[0]);
         }
-    });
+    }, [departments, selectedOrigin]);
 
     const { data: inventory, isLoading } = useQuery({
         queryKey: ['inventory'],
@@ -46,7 +48,7 @@ export const WardSendPage = () => {
                 await api.addLog({
                     toolSetId: item.id,
                     action: `Dikirim dari ${selectedOrigin} ke CSSD`,
-                    operatorId: 'RoomUser',
+                    operatorId: user?.name || 'RoomUser',
                     notes: item.condition === 'damaged' ? 'Kondisi rusak saat dikirim.' : undefined,
                     photo: item.photoUrl
                 });

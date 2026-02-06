@@ -74,10 +74,24 @@ export const WashingPage = () => {
         else setSelectedItems(new Set(dirtyItems.map(i => i.id)));
     };
 
+    const [showSuccess, setShowSuccess] = useState(false);
+
     const startWashingMutation = useMutation({
         mutationFn: async () => {
             if (!selectedMachine) return;
             const duration = activeProgram.duration;
+
+            // Security check: ensure items are still dirty
+            const itemsArray = Array.from(selectedItems);
+            const currentInventory = await api.getInventory();
+            const validItems = itemsArray.filter(id => {
+                const item = currentInventory.find(i => i.id === id);
+                return item?.status === 'dirty';
+            });
+
+            if (validItems.length === 0) {
+                throw new Error('Alat yang dipilih tidak valid atau sudah diproses.');
+            }
 
             // 1. Update machine status to running with meta
             await api.updateMachineStatus(selectedMachine, 'running', {
@@ -86,15 +100,15 @@ export const WashingPage = () => {
             });
 
             // 2. Update status of selected items
-            await api.batchUpdateToolStatus(Array.from(selectedItems), 'washing');
+            await api.batchUpdateToolStatus(validItems, 'washing');
 
             // 3. Log the action
             await api.addLog({
-                toolSetId: Array.from(selectedItems)[0], // Link to first item for ref
+                toolSetId: validItems[0], // Link to first item for ref
                 action: `Mulai Cuci (${activeProgram.name.toUpperCase()})`,
                 operatorId: user?.name || 'Operator',
                 machineId: selectedMachine,
-                notes: `Memulai siklus ${activeProgram.name} dengan ${selectedItems.size} alat.`
+                notes: `Memulai siklus ${activeProgram.name} dengan ${validItems.length} alat.`
             });
         },
         onSuccess: () => {
@@ -103,11 +117,24 @@ export const WashingPage = () => {
             queryClient.invalidateQueries({ queryKey: ['logs'] });
             setSelectedMachine(null);
             setSelectedItems(new Set());
+            setShowSuccess(true);
+            setTimeout(() => setShowSuccess(false), 3000);
         },
     });
 
     return (
         <div className="space-y-8">
+            {showSuccess && (
+                <div className="fixed top-24 right-8 z-50 animate-in slide-in-from-right-full duration-300">
+                    <div className="bg-accent-emerald text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3">
+                        <CheckCircle2 size={24} />
+                        <div>
+                            <p className="font-black text-sm uppercase">Berhasil!</p>
+                            <p className="text-[10px] font-bold opacity-90">Mesin telah dimulai.</p>
+                        </div>
+                    </div>
+                </div>
+            )}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-3xl text-slate-900">Pencucian Alat</h1>
@@ -332,19 +359,21 @@ export const WashingPage = () => {
     );
 };
 
-const CheckCircle2 = ({ className, size }: { className?: string, size?: number }) => (
-    <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width={size || 24}
-        height={size || 24}
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="3"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className={className}
-    >
-        <path d="M20 6 9 17l-5-5" />
-    </svg>
-);
+function CheckCircle2({ className, size }: { className?: string, size?: number }) {
+    return (
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width={size || 24}
+            height={size || 24}
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className={className}
+        >
+            <path d="M20 6 9 17l-5-5" />
+        </svg>
+    );
+}

@@ -4,7 +4,7 @@ import { api, MASTER_DATA } from '../services/api';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
-import { Users, Database, Settings, Plus, Search, MoreVertical, Edit2, Trash2, X, ChevronRight, PackageCheck, Box } from 'lucide-react';
+import { Users, Database, Settings, Plus, Search, Edit2, Trash2, X, ChevronRight, PackageCheck, Box } from 'lucide-react';
 import { cn } from '../utils/cn';
 
 type TabType = 'staff' | 'inventory' | 'machines';
@@ -21,6 +21,8 @@ export const MasterDataPage = () => {
         employeeId: '',
         department: MASTER_DATA.DEPARTMENTS[0],
         role: MASTER_DATA.ROLES[0],
+        username: '',
+        password: '',
         // Machine fields
         type: MASTER_DATA.MACHINE_TYPES[0]
     });
@@ -87,6 +89,7 @@ export const MasterDataPage = () => {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['inventory'] });
             setEditingItem(null);
+            setIsModalOpen(false);
         },
     });
 
@@ -97,12 +100,47 @@ export const MasterDataPage = () => {
         },
     });
 
+    const updateStaffMutation = useMutation({
+        mutationFn: ({ id, data }: { id: string, data: any }) => api.updateStaff(id, data),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['staff'] });
+            setEditingItem(null);
+            setIsModalOpen(false);
+            setCredentialsModal({ isOpen: false, staff: null });
+        },
+    });
+
+    const deleteStaffMutation = useMutation({
+        mutationFn: api.deleteStaff,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['staff'] });
+        },
+    });
+
+    const updateMachineMutation = useMutation({
+        mutationFn: ({ id, data }: { id: string, data: any }) => api.updateMachine(id, data),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['machines'] });
+            setEditingItem(null);
+            setIsModalOpen(false);
+        },
+    });
+
+    const deleteMachineMutation = useMutation({
+        mutationFn: api.deleteMachine,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['machines'] });
+        },
+    });
+
     const resetForm = () => {
         setFormData({
             name: '', barcode: '', category: MASTER_DATA.CATEGORIES[0], quantity: 1,
             employeeId: '', department: MASTER_DATA.DEPARTMENTS[0], role: MASTER_DATA.ROLES[0],
+            username: '', password: '',
             type: MASTER_DATA.MACHINE_TYPES[0]
         });
+        setEditingItem(null);
     };
 
     const tabs = [
@@ -144,23 +182,44 @@ export const MasterDataPage = () => {
                 }
             }
         } else if (activeTab === 'staff') {
-            // Auto-generate username and password
-            const username = formData.name.toLowerCase().replace(/\s+/g, '.');
-            const password = Math.random().toString(36).slice(-8);
+            if (editingItem) {
+                updateStaffMutation.mutate({
+                    id: editingItem.id,
+                    data: {
+                        name: formData.name,
+                        employeeId: formData.employeeId,
+                        department: formData.department,
+                        role: formData.role as any,
+                        username: formData.username,
+                        password: formData.password
+                    }
+                });
+            } else {
+                // Auto-generate username and password for new staff if not provided
+                const username = formData.username || formData.name.toLowerCase().replace(/\s+/g, '.');
+                const password = formData.password || Math.random().toString(36).slice(-8);
 
-            createStaffMutation.mutate({
-                name: formData.name,
-                employeeId: formData.employeeId,
-                department: formData.department,
-                role: formData.role as 'admin' | 'operator',
-                username: username,
-                password: password
-            });
+                createStaffMutation.mutate({
+                    name: formData.name,
+                    employeeId: formData.employeeId,
+                    department: formData.department,
+                    role: formData.role as any,
+                    username,
+                    password
+                });
+            }
         } else if (activeTab === 'machines') {
-            createMachineMutation.mutate({
-                name: formData.name,
-                type: formData.type as 'washer' | 'sterilizer'
-            });
+            if (editingItem) {
+                updateMachineMutation.mutate({
+                    id: editingItem.id,
+                    data: { name: formData.name, type: formData.type as any }
+                });
+            } else {
+                createMachineMutation.mutate({
+                    name: formData.name,
+                    type: formData.type as any
+                });
+            }
         }
     };
 
@@ -274,9 +333,39 @@ export const MasterDataPage = () => {
                                             Detail
                                         </Button>
                                     </td>
-                                    <td className="px-8 py-5 text-right">
-                                        <button className="p-2 text-slate-300 hover:text-slate-500 transition-colors">
-                                            <MoreVertical size={18} />
+                                    <td className="px-8 py-5 text-right flex justify-end gap-2">
+                                        <button
+                                            onClick={() => {
+                                                setEditingItem(item);
+                                                setFormData({
+                                                    name: item.name,
+                                                    barcode: '',
+                                                    category: MASTER_DATA.CATEGORIES[0],
+                                                    quantity: 1,
+                                                    employeeId: item.employeeId,
+                                                    department: item.department,
+                                                    role: item.role,
+                                                    username: item.username || '',
+                                                    password: item.password || '',
+                                                    type: 'washer'
+                                                });
+                                                setIsModalOpen(true);
+                                            }}
+                                            className="p-1.5 text-slate-400 hover:text-accent-indigo hover:bg-accent-indigo/10 rounded transition-colors"
+                                            title="Edit Staff"
+                                        >
+                                            <Edit2 size={16} />
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                if (confirm(`Apakah Anda yakin ingin menghapus staff "${item.name}"?`)) {
+                                                    deleteStaffMutation.mutate(item.id);
+                                                }
+                                            }}
+                                            className="p-1.5 text-slate-400 hover:text-accent-rose hover:bg-accent-rose/10 rounded transition-colors"
+                                            title="Hapus Staff"
+                                        >
+                                            <Trash2 size={16} />
                                         </button>
                                     </td>
                                 </tr>
@@ -369,8 +458,10 @@ export const MasterDataPage = () => {
                                                                                     category: item.category,
                                                                                     quantity: 1,
                                                                                     employeeId: '',
-                                                                                    department: 'CSSD',
-                                                                                    role: 'operator',
+                                                                                    department: MASTER_DATA.DEPARTMENTS[0],
+                                                                                    role: MASTER_DATA.ROLES[0],
+                                                                                    username: '',
+                                                                                    password: '',
                                                                                     type: 'washer'
                                                                                 });
                                                                                 setIsModalOpen(true);
@@ -418,9 +509,39 @@ export const MasterDataPage = () => {
                                         </div>
                                     </td>
                                     <td className="px-8 py-5 text-sm text-slate-500">20 Jan 2026</td>
-                                    <td className="px-8 py-5 text-right">
-                                        <button className="p-2 text-slate-300 hover:text-slate-500 transition-colors">
-                                            <MoreVertical size={18} />
+                                    <td className="px-8 py-5 text-right flex justify-end gap-2">
+                                        <button
+                                            onClick={() => {
+                                                setEditingItem(item);
+                                                setFormData({
+                                                    name: item.name,
+                                                    barcode: '',
+                                                    category: MASTER_DATA.CATEGORIES[0],
+                                                    quantity: 1,
+                                                    employeeId: '',
+                                                    department: MASTER_DATA.DEPARTMENTS[0],
+                                                    role: MASTER_DATA.ROLES[0],
+                                                    username: '',
+                                                    password: '',
+                                                    type: item.type as any
+                                                });
+                                                setIsModalOpen(true);
+                                            }}
+                                            className="p-1.5 text-slate-400 hover:text-accent-indigo hover:bg-accent-indigo/10 rounded transition-colors"
+                                            title="Edit Mesin"
+                                        >
+                                            <Edit2 size={16} />
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                if (confirm(`Apakah Anda yakin ingin menghapus mesin "${item.name}"?`)) {
+                                                    deleteMachineMutation.mutate(item.id);
+                                                }
+                                            }}
+                                            className="p-1.5 text-slate-400 hover:text-accent-rose hover:bg-accent-rose/10 rounded transition-colors"
+                                            title="Hapus Mesin"
+                                        >
+                                            <Trash2 size={16} />
                                         </button>
                                     </td>
                                 </tr>
@@ -537,6 +658,25 @@ export const MasterDataPage = () => {
                                             </select>
                                         </div>
                                     </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-1.5">
+                                            <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest pl-1">Username</label>
+                                            <Input
+                                                placeholder="username.staff"
+                                                value={formData.username}
+                                                onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                                            />
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest pl-1">Password</label>
+                                            <Input
+                                                type="text"
+                                                placeholder="password123"
+                                                value={formData.password}
+                                                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                                            />
+                                        </div>
+                                    </div>
                                 </>
                             )}
 
@@ -619,9 +759,34 @@ export const MasterDataPage = () => {
                             </div>
                         </div>
 
-                        <div className="mt-6">
+                        <div className="mt-6 flex gap-3">
                             <Button
-                                className="w-full"
+                                variant="secondary"
+                                className="flex-1"
+                                onClick={() => {
+                                    const st = credentialsModal.staff;
+                                    setEditingItem(st);
+                                    setFormData({
+                                        name: st.name,
+                                        barcode: '',
+                                        category: MASTER_DATA.CATEGORIES[0],
+                                        quantity: 1,
+                                        employeeId: st.employeeId,
+                                        department: st.department,
+                                        role: st.role,
+                                        username: st.username || '',
+                                        password: st.password || '',
+                                        type: 'washer'
+                                    });
+                                    setCredentialsModal({ isOpen: false, staff: null });
+                                    setIsModalOpen(true);
+                                }}
+                            >
+                                <Edit2 size={14} className="mr-2" />
+                                Edit Kredensial
+                            </Button>
+                            <Button
+                                className="flex-1"
                                 onClick={() => setCredentialsModal({ isOpen: false, staff: null })}
                             >
                                 Tutup

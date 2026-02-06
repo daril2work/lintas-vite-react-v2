@@ -63,10 +63,24 @@ export const SterilizingPage = () => {
         setSelectedItems(newSelected);
     };
 
+    const [showSuccess, setShowSuccess] = useState(false);
+
     const startMutation = useMutation({
         mutationFn: async () => {
             if (!selectedMachine) return;
             const duration = activeProgram.duration;
+
+            // Security check: ensure items are ready for sterilization
+            const itemsArray = Array.from(selectedItems);
+            const currentInventory = await api.getInventory();
+            const validItems = itemsArray.filter(id => {
+                const item = currentInventory.find(i => i.id === id);
+                return item?.status === 'sterilizing';
+            });
+
+            if (validItems.length === 0) {
+                throw new Error('Alat tidak dalam status siap steril.');
+            }
 
             // Start Machine
             await api.updateMachineStatus(selectedMachine, 'running', {
@@ -76,17 +90,19 @@ export const SterilizingPage = () => {
 
             // Log
             await api.addLog({
-                toolSetId: Array.from(selectedItems)[0] || 'batch',
+                toolSetId: validItems[0] || 'batch',
                 action: 'Start Sterilization',
                 operatorId: user?.name || 'Operator',
                 machineId: selectedMachine,
-                notes: `Started ${activeProgram.name} cycle (${duration}m) with ${selectedItems.size} items.`
+                notes: `Started ${activeProgram.name} cycle (${duration}m) with ${validItems.length} items.`
             });
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['machines'] });
             setSelectedMachine(null);
             setSelectedItems(new Set());
+            setShowSuccess(true);
+            setTimeout(() => setShowSuccess(false), 3000);
         }
     });
 
@@ -115,11 +131,24 @@ export const SterilizingPage = () => {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['machines'] });
             queryClient.invalidateQueries({ queryKey: ['inventory'] });
+            setShowSuccess(true);
+            setTimeout(() => setShowSuccess(false), 3000);
         }
     });
 
     return (
         <div className="space-y-8">
+            {showSuccess && (
+                <div className="fixed top-24 right-8 z-50 animate-in slide-in-from-right-full duration-300">
+                    <div className="bg-accent-emerald text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3">
+                        <ShieldCheck size={24} />
+                        <div>
+                            <p className="font-black text-sm uppercase">Berhasil!</p>
+                            <p className="text-[10px] font-bold opacity-90">Proses telah diperbarui.</p>
+                        </div>
+                    </div>
+                </div>
+            )}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-3xl text-slate-900">Sterilisasi</h1>

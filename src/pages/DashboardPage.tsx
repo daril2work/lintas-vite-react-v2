@@ -161,7 +161,7 @@ export const DashboardPage = () => {
                                             <td className="px-6 py-4 font-bold capitalize">{req.ward}</td>
                                             <td className="px-6 py-4">
                                                 <div className="flex flex-wrap gap-1">
-                                                    {req.items.map((it, idx) => (
+                                                    {req.items?.map((it, idx) => (
                                                         <span key={idx} className="bg-slate-100 px-1.5 py-0.5 rounded text-[10px]">{it.name}</span>
                                                     ))}
                                                 </div>

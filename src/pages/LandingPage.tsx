@@ -64,8 +64,11 @@ export const LandingPage: React.FC = () => {
             </div>
 
             {/* Bottom Credits */}
-            <div className="absolute bottom-8 left-0 right-0 text-center">
-                <p className="text-slate-500 text-xs font-medium uppercase tracking-[0.2em]">
+            <div className="absolute bottom-8 left-0 right-0 text-center space-y-2">
+                <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.3em]">
+                    {APP_CONFIG.APP_VERSION}
+                </p>
+                <p className="text-slate-600 text-[8px] font-medium uppercase tracking-[0.2em]">
                     {APP_CONFIG.APP_COPYRIGHT} • Intelligent CSSD Management
                 </p>
             </div>

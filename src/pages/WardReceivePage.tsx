@@ -1,11 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Box, ClipboardCheck, CheckCircle2, Search, AlertCircle } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 export const WardReceivePage = () => {
+    const { user } = useAuth();
     const queryClient = useQueryClient();
 
     const { data: departments = [] } = useQuery({
@@ -17,11 +19,11 @@ export const WardReceivePage = () => {
     const [search, setSearch] = useState('');
 
     // Set initial department
-    useState(() => {
+    useEffect(() => {
         if (departments.length > 0 && !selectedRoom) {
             setSelectedRoom(departments[0]);
         }
-    });
+    }, [departments, selectedRoom]);
 
     const { data: inventory, isLoading } = useQuery({
         queryKey: ['inventory'],
@@ -33,7 +35,7 @@ export const WardReceivePage = () => {
             await api.addLog({
                 toolSetId: id,
                 action: `Diterima di ${selectedRoom}`,
-                operatorId: 'RoomUser',
+                operatorId: user?.name || 'RoomUser',
                 notes: 'Alat diterima dalam kondisi steril dan kemasan utuh.'
             });
         },

@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
 import { Button } from '../components/ui/Button';
 import { Shield, Mail, Lock, AlertCircle, ArrowLeft } from 'lucide-react';
+import { APP_CONFIG } from '../constants/config';
 
 export const LoginPage: React.FC = () => {
     const [email, setEmail] = useState('');
@@ -111,6 +112,9 @@ export const LoginPage: React.FC = () => {
                     <div className="mt-10 pt-8 border-t border-white/5 text-center">
                         <p className="text-xs text-slate-500">
                             Lupa password? Silakan hubungi <span className="text-accent-indigo font-bold">Admin IT / CSSD</span> untuk reset kredensial Anda.
+                        </p>
+                        <p className="text-[10px] text-slate-600 font-bold uppercase tracking-[0.3em] mt-4">
+                            System Version {APP_CONFIG.APP_VERSION}
                         </p>
                     </div>
                 </div>
