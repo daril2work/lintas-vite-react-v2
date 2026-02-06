@@ -15,96 +15,99 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, onClos
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[100] flex justify-center items-start md:items-center p-4 md:p-8 bg-slate-900/60 backdrop-blur-md overflow-y-auto custom-scrollbar animate-in fade-in duration-300">
-            <Card className="w-full max-w-3xl my-auto overflow-hidden flex flex-col shadow-2xl border-white/20">
-                {/* Header */}
-                <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center shrink-0">
-                    <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-2xl bg-accent-indigo/10 flex items-center justify-center text-accent-indigo">
-                            <BookOpen size={24} />
-                        </div>
-                        <div>
-                            <h2 className="text-xl font-black text-slate-900 leading-tight">Panduan Onboarding</h2>
-                            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">LINTAS CSSD - RSUD MENUR</p>
-                        </div>
-                    </div>
-                    <button
-                        onClick={onClose}
-                        className="p-2 hover:bg-white rounded-xl text-slate-400 hover:text-slate-600 transition-all border border-transparent hover:border-slate-100"
-                    >
-                        <X size={24} />
-                    </button>
-                </div>
-
-                {/* Content */}
-                <div className="flex-1 overflow-y-auto p-8 custom-scrollbar space-y-8 bg-white/50">
-                    {/* Welcome Section */}
-                    <div className="bg-gradient-to-br from-accent-indigo/5 to-transparent p-6 rounded-3xl border border-accent-indigo/10">
-                        <h3 className="font-black text-slate-900 text-lg mb-2">Halo, {user?.name}! 👋</h3>
-                        <p className="text-sm text-slate-600 leading-relaxed">
-                            Selamat datang di Sistem Layanan Integrasi Sterilisasi. Sebagai <span className="font-black text-accent-indigo uppercase">{user?.role?.replace('_', ' ')}</span>,
-                            Anda memiliki akses khusus untuk menjalankan proses sterilisasi alat medis secara akurat dan transparan.
-                        </p>
-                    </div>
-
-                    {/* Role Specific Guide */}
-                    <div className="space-y-6">
-                        <div className="flex items-center gap-2 mb-4">
-                            <Zap size={18} className="text-accent-amber" />
-                            <h4 className="font-black text-slate-900 uppercase tracking-widest text-xs">Alur Kerja Utama Anda</h4>
-                        </div>
-
-                        {user?.role === 'admin' && (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <StepItem icon={Settings} title="Master Data" desc="Kelola data Staff, Inventaris Alat, dan daftar Mesin CSSD." color="indigo" />
-                                <StepItem icon={ShieldCheck} title="Kredensial" desc="Reset password dan atur hak akses role setiap pengguna." color="emerald" />
-                                <StepItem icon={PackageSearch} title="Audit Trail" desc="Pantau log aktivitas untuk akuntabilitas operasional." color="amber" />
-                                <StepItem icon={Truck} title="Reports" desc="Unduh laporan efisiensi dan performa sterilisasi bulanan." color="rose" />
+        <div className="fixed inset-0 z-[100] overflow-y-auto bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300">
+            {/* Modal Container to ensure perfect centering and scrolling */}
+            <div className="flex min-h-full items-center justify-center p-4 md:p-12">
+                <Card className="w-full max-w-4xl overflow-hidden flex flex-col shadow-[0_32px_64px_-16px_rgba(0,0,0,0.3)] border-white/20 animate-in zoom-in-95 duration-300">
+                    {/* Header */}
+                    <div className="p-8 border-b border-slate-100 bg-white/50 flex justify-between items-center shrink-0">
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-2xl bg-accent-indigo/10 flex items-center justify-center text-accent-indigo">
+                                <BookOpen size={24} />
                             </div>
-                        )}
-
-                        {user?.role === 'operator_cssd' && (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <StepItem icon={PackageSearch} title="Penerimaan" desc="Scan barcode alat kotor & ambil bukti foto (Intake)." color="indigo" />
-                                <StepItem icon={Waves} title="Pencucian" desc="Pilih mesin & program (Standard/Heavy) di menu Washing." color="emerald" />
-                                <StepItem icon={Box} title="Sterilisasi" desc="Jalankan proses Autoclave/Plasma & pantau suhu/waktu." color="amber" />
-                                <StepItem icon={Truck} title="Distribusi" desc="Pantau lonceng dan serahkan alat steril ke ruangan." color="rose" />
+                            <div>
+                                <h2 className="text-xl font-black text-slate-900 leading-tight">Panduan Onboarding</h2>
+                                <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">LINTAS CSSD - RSUD MENUR</p>
                             </div>
-                        )}
-
-                        {user?.role === 'operator_ruangan' && (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <StepItem icon={Send} title="Kirim Alat" desc="Input alat kotor dari ruangan untuk diproses CSSD." color="rose" />
-                                <StepItem icon={ListTodo} title="Permintaan" desc="Ajukan permintaan alat steril baru (Normal/Urgent)." color="indigo" />
-                                <StepItem icon={ClipboardCheck} title="Terima Alat" desc="Verifikasi & konfirmasi penerimaan alat steril." color="emerald" />
-                            </div>
-                        )}
-                    </div>
-
-                    {/* General Tips */}
-                    <div className="border-t border-slate-100 pt-8 space-y-4">
-                        <div className="flex items-center gap-2 mb-2">
-                            <ShieldCheck size={18} className="text-accent-emerald" />
-                            <h4 className="font-black text-slate-900 uppercase tracking-widest text-xs">Tips & Keamanan</h4>
                         </div>
-                        <ul className="space-y-3">
-                            <TipItem text="Setiap aksi dicatat otomatis dalam Audit Trail atas nama akun Anda." />
-                            <TipItem text="Sistem akan validasi status alat (misal: alat belum dicuci tidak bisa masuk mesin sterilisasi)." />
-                            <TipItem text="Segera klik notifikasi lonceng 🔔 untuk permintaan berstatus 'URGENT'." />
-                        </ul>
+                        <button
+                            onClick={onClose}
+                            className="p-2 hover:bg-white rounded-xl text-slate-400 hover:text-slate-600 transition-all border border-transparent hover:border-slate-100"
+                        >
+                            <X size={24} />
+                        </button>
                     </div>
-                </div>
 
-                {/* Footer */}
-                <div className="p-6 shrink-0 bg-slate-50/80 border-t border-slate-100 flex justify-center">
-                    <button
-                        onClick={onClose}
-                        className="px-10 py-4 bg-accent-indigo hover:bg-indigo-600 text-white font-black rounded-2xl shadow-xl shadow-accent-indigo/20 transition-all hover:scale-105 active:scale-95"
-                    >
-                        SAYA MENGERTI
-                    </button>
-                </div>
-            </Card>
+                    {/* Content */}
+                    <div className="flex-1 overflow-y-auto p-8 custom-scrollbar space-y-8 bg-white/50">
+                        {/* Welcome Section */}
+                        <div className="bg-gradient-to-br from-accent-indigo/5 to-transparent p-6 rounded-3xl border border-accent-indigo/10 text-center md:text-left">
+                            <h3 className="font-black text-slate-900 text-lg mb-2">Halo, {user?.name}! 👋</h3>
+                            <p className="text-sm text-slate-600 leading-relaxed">
+                                Selamat datang di Sistem Layanan Integrasi Sterilisasi. Sebagai <span className="font-black text-accent-indigo uppercase">{user?.role?.replace('_', ' ')}</span>,
+                                Anda memiliki akses khusus untuk menjalankan proses sterilisasi alat medis secara akurat dan transparan.
+                            </p>
+                        </div>
+
+                        {/* Role Specific Guide */}
+                        <div className="space-y-6">
+                            <div className="flex items-center gap-2 mb-4">
+                                <Zap size={18} className="text-accent-amber" />
+                                <h4 className="font-black text-slate-900 uppercase tracking-widest text-xs">Alur Kerja Utama Anda</h4>
+                            </div>
+
+                            {user?.role === 'admin' && (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <StepItem icon={Settings} title="Master Data" desc="Kelola data Staff, Inventaris Alat, dan daftar Mesin CSSD." color="indigo" />
+                                    <StepItem icon={ShieldCheck} title="Kredensial" desc="Reset password dan atur hak akses role setiap pengguna." color="emerald" />
+                                    <StepItem icon={PackageSearch} title="Audit Trail" desc="Pantau log aktivitas untuk akuntabilitas operasional." color="amber" />
+                                    <StepItem icon={Truck} title="Reports" desc="Unduh laporan efisiensi dan performa sterilisasi bulanan." color="rose" />
+                                </div>
+                            )}
+
+                            {user?.role === 'operator_cssd' && (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <StepItem icon={PackageSearch} title="Penerimaan" desc="Scan barcode alat kotor & ambil bukti foto (Intake)." color="indigo" />
+                                    <StepItem icon={Waves} title="Pencucian" desc="Pilih mesin & program (Standard/Heavy) di menu Washing." color="emerald" />
+                                    <StepItem icon={Box} title="Sterilisasi" desc="Jalankan proses Autoclave/Plasma & pantau suhu/waktu." color="amber" />
+                                    <StepItem icon={Truck} title="Distribusi" desc="Pantau lonceng dan serahkan alat steril ke ruangan." color="rose" />
+                                </div>
+                            )}
+
+                            {user?.role === 'operator_ruangan' && (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <StepItem icon={Send} title="Kirim Alat" desc="Input alat kotor dari ruangan untuk diproses CSSD." color="rose" />
+                                    <StepItem icon={ListTodo} title="Permintaan" desc="Ajukan permintaan alat steril baru (Normal/Urgent)." color="indigo" />
+                                    <StepItem icon={ClipboardCheck} title="Terima Alat" desc="Verifikasi & konfirmasi penerimaan alat steril." color="emerald" />
+                                </div>
+                            )}
+                        </div>
+
+                        {/* General Tips */}
+                        <div className="border-t border-slate-100 pt-8 space-y-4">
+                            <div className="flex items-center gap-2 mb-2">
+                                <ShieldCheck size={18} className="text-accent-emerald" />
+                                <h4 className="font-black text-slate-900 uppercase tracking-widest text-xs">Tips & Keamanan</h4>
+                            </div>
+                            <ul className="space-y-3">
+                                <TipItem text="Setiap aksi dicatat otomatis dalam Audit Trail atas nama akun Anda." />
+                                <TipItem text="Sistem akan validasi status alat (misal: alat belum dicuci tidak bisa masuk mesin sterilisasi)." />
+                                <TipItem text="Segera klik notifikasi lonceng 🔔 untuk permintaan berstatus 'URGENT'." />
+                            </ul>
+                        </div>
+                    </div>
+
+                    {/* Footer */}
+                    <div className="p-6 shrink-0 bg-slate-50/80 border-t border-slate-100 flex justify-center">
+                        <button
+                            onClick={onClose}
+                            className="px-10 py-4 bg-accent-indigo hover:bg-indigo-600 text-white font-black rounded-2xl shadow-xl shadow-accent-indigo/20 transition-all hover:scale-105 active:scale-95"
+                        >
+                            SAYA MENGERTI
+                        </button>
+                    </div>
+                </Card>
+            </div>
         </div>
     );
 };
