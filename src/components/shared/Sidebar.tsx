@@ -27,7 +27,7 @@ const MENU_SECTIONS = [
     {
         id: 'utama',
         header: 'UTAMA',
-        allowedRoles: ['admin', 'operator', 'nurse'],
+        allowedRoles: ['admin', 'operator_cssd', 'operator_ruangan'],
         items: [
             { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
         ]
@@ -35,7 +35,7 @@ const MENU_SECTIONS = [
     {
         id: 'aktivitas',
         header: 'AKTIVITAS CSSD',
-        allowedRoles: ['admin', 'operator'],
+        allowedRoles: ['admin', 'operator_cssd'],
         items: [
             { icon: PackageSearch, label: 'Penerimaan', path: '/intake' },
             { icon: Waves, label: 'Pencucian', path: '/washing' },
@@ -47,7 +47,7 @@ const MENU_SECTIONS = [
     {
         id: 'ruangan',
         header: 'RUANGAN / UNIT',
-        allowedRoles: ['admin', 'nurse'],
+        allowedRoles: ['admin', 'operator_ruangan'],
         items: [
             { icon: Send, label: 'Kirim Alat Kotor', path: '/ward/send' },
             { icon: ClipboardCheck, label: 'Terima Distribusi', path: '/ward/receive' },
@@ -164,7 +164,11 @@ export const Sidebar = () => {
                     </div>
                     <div className="flex-1 overflow-hidden">
                         <p className="text-sm font-bold truncate leading-none mb-1">{user?.name || 'User Lintas'}</p>
-                        <p className="text-[10px] text-slate-500 uppercase font-black tracking-widest">{user?.role || 'Guest'}</p>
+                        <p className="text-[10px] text-slate-500 uppercase font-black tracking-widest">
+                            {user?.role === 'operator_cssd' ? 'Operator CSSD' :
+                                user?.role === 'operator_ruangan' ? 'Operator Ruangan' :
+                                    user?.role || 'Guest'}
+                        </p>
                     </div>
                 </div>
 

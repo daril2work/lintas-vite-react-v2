@@ -24,7 +24,7 @@ const INITIAL_DATA = {
         {
             id: '2',
             name: 'Siti Aminah',
-            role: 'operator',
+            role: 'operator_cssd',
             department: 'CSSD',
             employeeId: 'EMP002',
             username: 'siti.aminah',
@@ -33,7 +33,7 @@ const INITIAL_DATA = {
         {
             id: '3',
             name: 'Ani Perawat',
-            role: 'nurse',
+            role: 'operator_ruangan',
             department: 'IGD',
             employeeId: 'NRS001',
             username: 'ani.perawat',
@@ -53,7 +53,7 @@ const INITIAL_DATA = {
 export const MASTER_DATA = {
     DEPARTMENTS: ['CSSD', 'IGD', 'ICU', 'OK (Bedah)', 'Poli Umum', 'Poli Gigi', 'Logistik'],
     CATEGORIES: ['Bedah', 'Ortopedi', 'Gigi', 'Umum', 'Lainnya'],
-    ROLES: ['admin', 'operator', 'nurse'],
+    ROLES: ['admin', 'operator_cssd', 'operator_ruangan'],
     MACHINE_TYPES: ['washer', 'sterilizer', 'plasma'],
     WASHING_PROGRAMS: [
         { id: 'standard', name: 'Standard Cycle', duration: 45, temp: 60 },

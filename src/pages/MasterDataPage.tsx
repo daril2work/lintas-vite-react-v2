@@ -320,7 +320,9 @@ export const MasterDataPage = () => {
                                     <td className="px-8 py-5 text-sm text-slate-600">{item.department}</td>
                                     <td className="px-8 py-5">
                                         <span className="px-2 py-0.5 rounded-md bg-slate-100 text-[10px] font-black uppercase text-slate-500">
-                                            {item.role}
+                                            {item.role === 'operator_cssd' ? 'Operator CSSD' :
+                                                item.role === 'operator_ruangan' ? 'Operator Ruangan' :
+                                                    item.role}
                                         </span>
                                     </td>
                                     <td className="px-8 py-5">
@@ -654,7 +656,13 @@ export const MasterDataPage = () => {
                                                 value={formData.role}
                                                 onChange={(e) => setFormData({ ...formData, role: e.target.value })}
                                             >
-                                                {MASTER_DATA.ROLES.map(r => <option key={r} value={r}>{r.toUpperCase()}</option>)}
+                                                {MASTER_DATA.ROLES.map(r => (
+                                                    <option key={r} value={r}>
+                                                        {r === 'operator_cssd' ? 'OPERATOR CSSD' :
+                                                            r === 'operator_ruangan' ? 'OPERATOR RUANGAN' :
+                                                                r.toUpperCase()}
+                                                    </option>
+                                                ))}
                                             </select>
                                         </div>
                                     </div>
