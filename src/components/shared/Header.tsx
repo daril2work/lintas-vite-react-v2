@@ -1,4 +1,4 @@
-import { Bell, Search, Menu as MenuIcon, Clock, ArrowRight } from 'lucide-react';
+import { Bell, Search, Menu as MenuIcon, Clock, ArrowRight, BookOpen } from 'lucide-react';
 import { useUIStore } from '../../store';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../services/api';
@@ -6,11 +6,13 @@ import { useNavigate } from 'react-router-dom';
 import { useState, useRef, useEffect } from 'react';
 import { APP_CONFIG } from '../../constants/config';
 import { cn } from '../../utils/cn';
+import { OnboardingModal } from './OnboardingModal';
 
 export const Header = () => {
     const navigate = useNavigate();
     const { toggleSidebar } = useUIStore();
     const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+    const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
     const { data: requests } = useQuery({
@@ -151,6 +153,20 @@ export const Header = () => {
                         </div>
                     )}
                 </div>
+
+                {/* Onboarding Help Button */}
+                <button
+                    onClick={() => setIsOnboardingOpen(true)}
+                    className="p-2.5 rounded-2xl hover:bg-slate-50 transition-all group text-slate-400 hover:text-accent-indigo"
+                    title="Panduan Onboarding"
+                >
+                    <BookOpen size={20} />
+                </button>
+
+                <OnboardingModal
+                    isOpen={isOnboardingOpen}
+                    onClose={() => setIsOnboardingOpen(false)}
+                />
                 <div className="h-10 w-px bg-slate-100 mx-2"></div>
                 <div className="flex flex-col items-end">
                     <span className="text-sm font-black text-slate-900">{dateString}</span>
