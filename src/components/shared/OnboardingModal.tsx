@@ -1,6 +1,11 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { Card } from '../ui/Card';
-import { X, BookOpen, ShieldCheck, Zap, Settings, Truck, PackageSearch, Waves, Box, ListTodo, Send, ClipboardCheck } from 'lucide-react';
+import {
+    X, BookOpen, ShieldCheck, Zap, Settings, Truck, PackageSearch,
+    Waves, Box, ListTodo, Send, ClipboardCheck, MousePointer2,
+    Search, Info
+} from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { useAuth } from '../../context/AuthContext';
 
@@ -14,11 +19,11 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, onClos
 
     if (!isOpen) return null;
 
-    return (
-        <div className="fixed inset-0 z-[100] overflow-y-auto bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300">
-            {/* Modal Container to ensure perfect centering and scrolling */}
-            <div className="flex min-h-full items-center justify-center p-4 md:p-12">
-                <Card className="w-full max-w-4xl overflow-hidden flex flex-col shadow-[0_32px_64px_-16px_rgba(0,0,0,0.3)] border-white/20 animate-in zoom-in-95 duration-300">
+    const modalContent = (
+        <div className="fixed inset-0 z-[9999] overflow-y-auto bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300">
+            {/* Modal Container: items-start + my-auto ensures it doesn't clip at the top */}
+            <div className="flex min-h-full items-start justify-center p-4 md:p-12">
+                <Card className="w-full max-w-4xl my-auto overflow-hidden flex flex-col shadow-[0_32px_64px_-16px_rgba(0,0,0,0.3)] border-white/20 animate-in zoom-in-95 duration-300">
                     {/* Header */}
                     <div className="p-8 border-b border-slate-100 bg-white/50 flex justify-between items-center shrink-0">
                         <div className="flex items-center gap-4">
@@ -39,7 +44,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, onClos
                     </div>
 
                     {/* Content */}
-                    <div className="flex-1 overflow-y-auto p-8 custom-scrollbar space-y-8 bg-white/50">
+                    <div className="flex-1 overflow-y-auto p-8 custom-scrollbar space-y-10 bg-white/50">
                         {/* Welcome Section */}
                         <div className="bg-gradient-to-br from-accent-indigo/5 to-transparent p-6 rounded-3xl border border-accent-indigo/10 text-center md:text-left">
                             <h3 className="font-black text-slate-900 text-lg mb-2">Halo, {user?.name}! 👋</h3>
@@ -49,8 +54,46 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, onClos
                             </p>
                         </div>
 
-                        {/* Role Specific Guide */}
+                        {/* General Operations Section */}
                         <div className="space-y-6">
+                            <div className="flex items-center gap-2 mb-4">
+                                <MousePointer2 size={18} className="text-accent-indigo" />
+                                <h4 className="font-black text-slate-900 uppercase tracking-widest text-xs">Cara Mengoperasikan Aplikasi</h4>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <div className="space-y-3">
+                                    <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600">
+                                        <Settings size={16} />
+                                    </div>
+                                    <h5 className="font-bold text-slate-900 text-sm">Navigasi Sidebar</h5>
+                                    <p className="text-[11px] text-slate-500 leading-relaxed font-medium">
+                                        Gunakan menu di sebelah kiri untuk berpindah modul. Menu akan tampil secara otomatis sesuai dengan hak akses (Role) Anda.
+                                    </p>
+                                </div>
+                                <div className="space-y-3">
+                                    <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600">
+                                        <Search size={16} />
+                                    </div>
+                                    <h5 className="font-bold text-slate-900 text-sm">Pencarian Cepat</h5>
+                                    <p className="text-[11px] text-slate-500 leading-relaxed font-medium">
+                                        Gunakan kolom pencarian di bagian atas layar untuk menemukan alat berdasarkan Nama, Kode Barcode, atau Nomor Batch Sterilisasi.
+                                    </p>
+                                </div>
+                                <div className="space-y-3">
+                                    <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600">
+                                        <Info size={16} />
+                                    </div>
+                                    <h5 className="font-bold text-slate-900 text-sm">Indikator Status</h5>
+                                    <p className="text-[11px] text-slate-500 leading-relaxed font-medium">
+                                        <span className="text-accent-emerald font-black">HIJAU</span> berarti Siap/Steril, <span className="text-accent-indigo font-black">BIRU</span> berarti sedang dalam Proses, dan <span className="text-accent-rose font-black">MERAH</span> berarti Urgent/Terkendala.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Role Specific Guide */}
+                        <div className="space-y-6 border-t border-slate-100 pt-10">
                             <div className="flex items-center gap-2 mb-4">
                                 <Zap size={18} className="text-accent-amber" />
                                 <h4 className="font-black text-slate-900 uppercase tracking-widest text-xs">Alur Kerja Utama Anda</h4>
@@ -84,7 +127,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, onClos
                         </div>
 
                         {/* General Tips */}
-                        <div className="border-t border-slate-100 pt-8 space-y-4">
+                        <div className="border-t border-slate-100 pt-10 space-y-4">
                             <div className="flex items-center gap-2 mb-2">
                                 <ShieldCheck size={18} className="text-accent-emerald" />
                                 <h4 className="font-black text-slate-900 uppercase tracking-widest text-xs">Tips & Keamanan</h4>
@@ -110,6 +153,8 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, onClos
             </div>
         </div>
     );
+
+    return createPortal(modalContent, document.body);
 };
 
 const StepItem = ({ icon: Icon, title, desc, color }: { icon: any, title: string, desc: string, color: string }) => (
