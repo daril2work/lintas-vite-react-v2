@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { api } from '../services/api';
+// import { api } from '../services/api'; // Removed unused api import
 import { Button } from '../components/ui/Button';
 import { Shield, Mail, Lock, AlertCircle, ArrowLeft } from 'lucide-react';
 import { APP_CONFIG } from '../constants/config';
@@ -21,17 +21,12 @@ export const LoginPage: React.FC = () => {
         setIsLoading(true);
 
         try {
-            const staff = await api.getStaff();
-            const user = staff.find(s => s.username === email && s.password === password);
-
-            if (user) {
-                login(user); // Save to context and localStorage
-                navigate('/dashboard');
-            } else {
-                setError('Username atau password salah.');
-            }
-        } catch (err) {
-            setError('Terjadi kesalahan sistem. Silakan coba lagi.');
+            // Updated for Supabase Auth
+            await login(email, password);
+            navigate('/dashboard');
+        } catch (err: any) {
+            console.error(err);
+            setError(err.message || 'Login gagal. Periksa email dan password Anda.');
         } finally {
             setIsLoading(false);
         }

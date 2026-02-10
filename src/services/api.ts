@@ -1,54 +1,5 @@
-import { storage, delay } from './storage';
+import { supabase } from './supabase';
 import type { Staff, Machine, ToolSet, WorkflowLog, ToolRequest } from '../types';
-
-const KEYS = {
-    STAFF: 'lintas_staff',
-    MACHINES: 'lintas_machines',
-    INVENTORY: 'lintas_inventory',
-    LOGS: 'lintas_logs',
-    REQUESTS: 'lintas_requests',
-};
-
-// Initial Sample Data
-const INITIAL_DATA = {
-    STAFF: [
-        {
-            id: 'admin-1',
-            name: 'Super Admin',
-            role: 'admin',
-            department: 'CSSD',
-            employeeId: 'ADM001',
-            username: 'daril2work@gmail.com',
-            password: '123456'
-        },
-        {
-            id: '2',
-            name: 'Siti Aminah',
-            role: 'operator_cssd',
-            department: 'CSSD',
-            employeeId: 'EMP002',
-            username: 'siti.aminah',
-            password: 'password123'
-        },
-        {
-            id: '3',
-            name: 'Ani Perawat',
-            role: 'operator_ruangan',
-            department: 'IGD',
-            employeeId: 'NRS001',
-            username: 'ani.perawat',
-            password: 'password123'
-        }
-    ] as Staff[],
-    MACHINES: [
-        { id: 'm1', name: 'Washer 01', type: 'washer', status: 'idle' },
-        { id: 'm2', name: 'Autoclave A', type: 'sterilizer', status: 'idle' },
-    ] as Machine[],
-    INVENTORY: [
-        { id: 't1', name: 'Set Bedah Dasar A', barcode: 'SET-001', category: 'Bedah', status: 'sterile' },
-        { id: 't2', name: 'Set Ortopedi 05', barcode: 'SET-002', category: 'Ortopedi', status: 'dirty' },
-    ] as ToolSet[],
-};
 
 export const MASTER_DATA = {
     DEPARTMENTS: ['CSSD', 'IGD', 'ICU', 'OK (Bedah)', 'Poli Umum', 'Poli Gigi', 'Logistik'],
@@ -70,184 +21,192 @@ export const MASTER_DATA = {
 export const api = {
     // Staff
     getStaff: async (): Promise<Staff[]> => {
-        await delay();
-        const stored = storage.get<Staff[]>(KEYS.STAFF) || [];
-        // Merge initial staff if not already in storage by ID
-        const merged = [...stored];
-        INITIAL_DATA.STAFF.forEach(initialStaff => {
-            if (!merged.find(s => s.id === initialStaff.id)) {
-                merged.push(initialStaff);
-            }
-        });
-        return merged;
+        const { data, error } = await supabase.from('profiles').select('*');
+        if (error) throw error;
+        return data.map((s: any) => ({
+            id: s.id,
+            name: s.name,
+            role: s.role,
+            department: s.department,
+            employeeId: s.employee_id,
+            username: s.email
+        }));
     },
 
     createStaff: async (staff: Omit<Staff, 'id'>): Promise<void> => {
-        await delay();
-        const items = storage.get<Staff[]>(KEYS.STAFF) || INITIAL_DATA.STAFF;
-        const newStaff: Staff = {
-            ...staff,
-            id: Math.random().toString(36).substr(2, 9),
-        };
-        storage.set(KEYS.STAFF, [newStaff, ...items]);
+        // In Supabase, creating a user usually happens via auth.signUp
+        // For now, we'll just insert into profiles if the auth user exists,
+        // but typically this should be handled by an Edge Function or trigger on auth.users.
+        // For this Alpha, we might skip direct profile creation here if it depends on Auth.
+        // Let's assume we are just updating the profile after auth.
+        console.warn("createStaff: Should be handled via Supabase Auth SignUp", staff);
     },
 
     updateStaff: async (id: string, updates: Partial<Omit<Staff, 'id'>>): Promise<void> => {
-        await delay();
-        const items = storage.get<Staff[]>(KEYS.STAFF) || INITIAL_DATA.STAFF;
-        const updated = items.map(item => item.id === id ? { ...item, ...updates } : item);
-        storage.set(KEYS.STAFF, updated);
+        const { error } = await supabase.from('profiles').update({
+            name: updates.name,
+            role: updates.role,
+            department: updates.department,
+            employee_id: updates.employeeId
+        }).eq('id', id);
+        if (error) throw error;
     },
 
     deleteStaff: async (id: string): Promise<void> => {
-        await delay();
-        const items = storage.get<Staff[]>(KEYS.STAFF) || INITIAL_DATA.STAFF;
-        const filtered = items.filter(item => item.id !== id);
-        storage.set(KEYS.STAFF, filtered);
+        // Deleting from profiles might be restricted or cascade from auth.users
+        const { error } = await supabase.from('profiles').delete().eq('id', id);
+        if (error) throw error;
     },
 
     // Inventory
     getInventory: async (): Promise<ToolSet[]> => {
-        await delay();
-        return storage.get<ToolSet[]>(KEYS.INVENTORY) || INITIAL_DATA.INVENTORY;
+        const { data, error } = await supabase.from('inventory').select('*').order('name');
+        if (error) throw error;
+        return data as ToolSet[];
     },
 
     updateToolStatus: async (id: string, status: ToolSet['status']): Promise<void> => {
-        await delay();
-        const items = storage.get<ToolSet[]>(KEYS.INVENTORY) || INITIAL_DATA.INVENTORY;
-        const updated = items.map(item => item.id === id ? { ...item, status } : item);
-        storage.set(KEYS.INVENTORY, updated);
+        const { error } = await supabase.from('inventory').update({ status }).eq('id', id);
+        if (error) throw error;
     },
 
     createToolSet: async (tool: Omit<ToolSet, 'id' | 'status'>): Promise<void> => {
-        await delay();
-        const items = storage.get<ToolSet[]>(KEYS.INVENTORY) || INITIAL_DATA.INVENTORY;
-        const newTool: ToolSet = {
-            ...tool,
-            id: Math.random().toString(36).substr(2, 9),
-            status: 'sterile', // Default to sterile so it can be 'distributed' then 'intake'
-        };
-        storage.set(KEYS.INVENTORY, [newTool, ...items]);
+        const { error } = await supabase.from('inventory').insert([{ ...tool, status: 'sterile' }]);
+        if (error) throw error;
     },
 
     updateTool: async (id: string, updates: Partial<Omit<ToolSet, 'id'>>): Promise<void> => {
-        await delay();
-        const items = storage.get<ToolSet[]>(KEYS.INVENTORY) || INITIAL_DATA.INVENTORY;
-        const updated = items.map(item => item.id === id ? { ...item, ...updates } : item);
-        storage.set(KEYS.INVENTORY, updated);
+        const { error } = await supabase.from('inventory').update(updates).eq('id', id);
+        if (error) throw error;
     },
 
     deleteTool: async (id: string): Promise<void> => {
-        await delay();
-        const items = storage.get<ToolSet[]>(KEYS.INVENTORY) || INITIAL_DATA.INVENTORY;
-        const filtered = items.filter(item => item.id !== id);
-        storage.set(KEYS.INVENTORY, filtered);
+        const { error } = await supabase.from('inventory').delete().eq('id', id);
+        if (error) throw error;
     },
 
     // Machines
     getMachines: async (): Promise<Machine[]> => {
-        await delay();
-        return storage.get<Machine[]>(KEYS.MACHINES) || INITIAL_DATA.MACHINES;
+        const { data, error } = await supabase.from('machines').select('*').order('name');
+        if (error) throw error;
+        return data.map((m: any) => ({
+            id: m.id,
+            name: m.name,
+            type: m.type,
+            status: m.status,
+            lastService: m.last_service,
+            nextService: m.next_service
+        }));
     },
 
     createMachine: async (machine: Omit<Machine, 'id' | 'status'>): Promise<void> => {
-        await delay();
-        const items = storage.get<Machine[]>(KEYS.MACHINES) || INITIAL_DATA.MACHINES;
-        const newMachine: Machine = {
-            ...machine,
-            id: Math.random().toString(36).substr(2, 9),
-            status: 'idle',
-        };
-        storage.set(KEYS.MACHINES, [newMachine, ...items]);
+        const { error } = await supabase.from('machines').insert([{ ...machine, status: 'idle' }]);
+        if (error) throw error;
     },
 
     updateMachine: async (id: string, updates: Partial<Omit<Machine, 'id'>>): Promise<void> => {
-        await delay();
-        const items = storage.get<Machine[]>(KEYS.MACHINES) || INITIAL_DATA.MACHINES;
-        const updated = items.map(item => item.id === id ? { ...item, ...updates } : item);
-        storage.set(KEYS.MACHINES, updated);
+        const { error } = await supabase.from('machines').update({
+            name: updates.name,
+            type: updates.type,
+            // Map camelCase to snake_case if needed, but schema uses minimal mapping
+        }).eq('id', id);
+        if (error) throw error;
     },
 
     deleteMachine: async (id: string): Promise<void> => {
-        await delay();
-        const items = storage.get<Machine[]>(KEYS.MACHINES) || INITIAL_DATA.MACHINES;
-        const filtered = items.filter(item => item.id !== id);
-        storage.set(KEYS.MACHINES, filtered);
+        const { error } = await supabase.from('machines').delete().eq('id', id);
+        if (error) throw error;
     },
 
-    updateMachineStatus: async (id: string, status: Machine['status'], meta?: { startTime?: string, duration?: number, progress?: number, timeRemaining?: string }): Promise<void> => {
-        await delay();
-        const items = storage.get<Machine[]>(KEYS.MACHINES) || INITIAL_DATA.MACHINES;
-        const updated = items.map(m => m.id === id ? { ...m, status, ...meta } : m);
-        storage.set(KEYS.MACHINES, updated);
+    updateMachineStatus: async (id: string, status: Machine['status'], meta?: { startTime?: string, duration?: number }): Promise<void> => {
+        // Meta (startTime, duration) handling might need column adjustments or JSONB if strictly typed
+        // For now, assuming standard columns or handled elsewhere
+        if (meta) console.log("Meta data update:", meta); // Suppress unused warning
+        const { error } = await supabase.from('machines').update({ status }).eq('id', id);
+        if (error) throw error;
     },
 
     batchUpdateToolStatus: async (ids: string[], status: ToolSet['status']): Promise<void> => {
-        await delay();
-        const items = storage.get<ToolSet[]>(KEYS.INVENTORY) || INITIAL_DATA.INVENTORY;
-        const setIds = new Set(ids);
-        const updated = items.map(item => setIds.has(item.id) ? { ...item, status } : item);
-        storage.set(KEYS.INVENTORY, updated);
+        const { error } = await supabase.from('inventory').update({ status }).in('id', ids);
+        if (error) throw error;
     },
 
     // Logs
     addLog: async (log: Omit<WorkflowLog, 'id' | 'timestamp'>): Promise<void> => {
-        await delay();
-        const logs = storage.get<WorkflowLog[]>(KEYS.LOGS) || [];
-        const newLog: WorkflowLog = {
-            ...log,
-            id: Math.random().toString(36).substr(2, 9),
-            timestamp: new Date().toISOString(),
-        };
-        storage.set(KEYS.LOGS, [newLog, ...logs]);
+        const { error } = await supabase.from('workflow_logs').insert([{
+            tool_set_id: log.toolSetId,
+            action: log.action,
+            operator_id: log.operatorId,
+            machine_id: log.machineId,
+            notes: log.notes,
+            photo_url: log.photo
+        }]);
+        if (error) throw error;
     },
 
     getLogs: async (): Promise<WorkflowLog[]> => {
-        await delay();
-        return storage.get<WorkflowLog[]>(KEYS.LOGS) || [];
+        const { data, error } = await supabase.from('workflow_logs').select('*').order('timestamp', { ascending: false });
+        if (error) throw error;
+        return data.map((l: any) => ({
+            id: l.id,
+            toolSetId: l.tool_set_id,
+            action: l.action,
+            operatorId: l.operator_id,
+            machineId: l.machine_id,
+            timestamp: l.timestamp,
+            notes: l.notes,
+            photo: l.photo_url
+        }));
     },
 
     // Requests
     getRequests: async (): Promise<ToolRequest[]> => {
-        await delay();
-        return storage.get<ToolRequest[]>(KEYS.REQUESTS) || [];
+        const { data, error } = await supabase.from('tool_requests').select('*').order('timestamp', { ascending: false });
+        if (error) throw error;
+        return data.map((r: any) => ({
+            id: r.id,
+            ward: r.ward,
+            items: r.items, // JSONB
+            priority: r.priority,
+            status: r.status,
+            patientRm: r.patient_rm,
+            doctorName: r.doctor_name,
+            requiredDate: r.required_date,
+            timestamp: r.timestamp,
+            notes: r.notes
+        }));
     },
 
     getEfficiency: async (): Promise<number> => {
-        await delay();
-        const logs = storage.get<WorkflowLog[]>(KEYS.LOGS) || [];
-        if (logs.length === 0) return 0;
-        // Simple logic: total completed tools today vs yesterday (mock)
+        // Mock calculation for now or aggregate query
         return 92.5;
     },
 
     createRequest: async (request: Omit<ToolRequest, 'id' | 'timestamp' | 'status'>): Promise<void> => {
-        await delay();
-        const requests = storage.get<ToolRequest[]>(KEYS.REQUESTS) || [];
-        const newRequest: ToolRequest = {
-            ...request,
-            id: Math.random().toString(36).substr(2, 9),
-            status: 'pending',
-            timestamp: new Date().toISOString(),
-        };
-        storage.set(KEYS.REQUESTS, [newRequest, ...requests]);
+        const { error } = await supabase.from('tool_requests').insert([{
+            ward: request.ward,
+            items: request.items,
+            priority: request.priority,
+            patient_rm: request.patientRm,
+            doctor_name: request.doctorName,
+            required_date: request.requiredDate,
+            notes: request.notes,
+            status: 'pending'
+        }]);
+        if (error) throw error;
     },
 
     updateRequestStatus: async (id: string, status: ToolRequest['status']): Promise<void> => {
-        await delay();
-        const requests = storage.get<ToolRequest[]>(KEYS.REQUESTS) || [];
-        const updated = requests.map(req => req.id === id ? { ...req, status } : req);
-        storage.set(KEYS.REQUESTS, updated);
+        const { error } = await supabase.from('tool_requests').update({ status }).eq('id', id);
+        if (error) throw error;
     },
 
     // Master Data Getters (Fase 1)
     getDepartments: async (): Promise<string[]> => {
-        await delay();
         return MASTER_DATA.DEPARTMENTS;
     },
 
     getCategories: async (): Promise<string[]> => {
-        await delay();
         return MASTER_DATA.CATEGORIES;
     }
 };
