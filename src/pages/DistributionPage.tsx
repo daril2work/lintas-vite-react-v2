@@ -3,17 +3,19 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
-import { Truck, UserCheck, MapPin, ClipboardList, PenTool, ListTodo, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Truck, UserCheck, MapPin, ClipboardList, PenTool, ListTodo, AlertCircle, CheckCircle2, Printer } from 'lucide-react';
 import { cn } from '../utils/cn';
+import { useAuth } from '../context/AuthContext';
 
 export const DistributionPage = () => {
+    const { user } = useAuth();
     const queryClient = useQueryClient();
     const [selectedItem, setSelectedItem] = useState<string | null>(null);
     const [selectedRequest, setSelectedRequest] = useState<string | null>(null);
     const [selectedStaff, setSelectedStaff] = useState('');
     const [showSignature, setShowSignature] = useState(false);
     const [activeTab, setActiveTab] = useState<'ready' | 'requests'>('ready');
-    const [verificationMethod, setVerificationMethod] = useState<'signature' | 'photo'>('signature');
+    const [verificationMethod, setVerificationMethod] = useState<'signature' | 'photo' | 'print'>('signature');
     const [photoEvidence, setPhotoEvidence] = useState<string | null>(null);
 
     const { data: inventory } = useQuery({ queryKey: ['inventory'], queryFn: api.getInventory });
@@ -42,9 +44,9 @@ export const DistributionPage = () => {
             await api.addLog({
                 toolSetId: id,
                 action: 'Distribution',
-                operatorId: 'system-admin', // Should be logged-in user
+                operatorId: user?.name || 'Operator',
                 notes: `Distributed to ${selectedStaff}. ${activeTab === 'requests' ? 'Fulfilled request.' : ''}`,
-                evidence: verificationMethod === 'photo' ? (photoEvidence ?? undefined) : 'Digital Signature'
+                evidence: verificationMethod === 'photo' ? (photoEvidence ?? undefined) : verificationMethod === 'print' ? 'Handover Form (Printed)' : 'Digital Signature'
             });
 
             if (activeTab === 'requests' && selectedRequest) {
@@ -361,6 +363,12 @@ export const DistributionPage = () => {
                                         >
                                             Upload Foto
                                         </button>
+                                        <button
+                                            className={cn("flex-1 py-1.5 text-xs font-bold rounded-md transition-all", verificationMethod === 'print' ? "bg-white shadow-sm text-slate-900" : "text-slate-400 hover:text-slate-600")}
+                                            onClick={() => setVerificationMethod('print')}
+                                        >
+                                            Cetak Form
+                                        </button>
                                     </div>
 
                                     {verificationMethod === 'signature' ? (
@@ -371,7 +379,7 @@ export const DistributionPage = () => {
                                                 <span className="text-slate-900 font-serif italic text-2xl">Accepted</span>
                                             </div>
                                         </div>
-                                    ) : (
+                                    ) : verificationMethod === 'photo' ? (
                                         <div className="space-y-3">
                                             <div className="relative aspect-video bg-slate-50 border-2 border-dashed border-slate-300 rounded-2xl flex flex-col items-center justify-center overflow-hidden">
                                                 {photoEvidence ? (
@@ -404,6 +412,20 @@ export const DistributionPage = () => {
                                             <p className="text-[10px] text-slate-400 text-center">
                                                 Ambil foto alat yang diserahterimakan sebagai bukti validasi.
                                             </p>
+                                        </div>
+                                    ) : (
+                                        <div className="p-8 bg-slate-50 border-2 border-dashed border-slate-300 rounded-2xl flex flex-col items-center justify-center text-center space-y-4">
+                                            <div className="w-12 h-12 rounded-full bg-slate-200 flex items-center justify-center text-slate-400">
+                                                <Printer size={24} />
+                                            </div>
+                                            <div>
+                                                <p className="text-xs font-bold text-slate-900">Form Serah Terima (PDF)</p>
+                                                <p className="text-[10px] text-slate-500 mt-1">Gunakan form cetak jika tidak memungkinkan tanda tangan digital.</p>
+                                            </div>
+                                            <Button variant="secondary" size="sm" className="bg-white border-slate-200 text-slate-600 h-9 gap-2">
+                                                <Printer size={14} />
+                                                Cetak Sekarang
+                                            </Button>
                                         </div>
                                     )}
 

@@ -12,8 +12,15 @@ export const LoginPage: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
 
-    const { login } = useAuth();
+    const { login, user, isLoading: isAuthLoading } = useAuth();
     const navigate = useNavigate();
+
+    // Auto-redirect if already authenticated
+    React.useEffect(() => {
+        if (user && !isAuthLoading) {
+            navigate('/dashboard');
+        }
+    }, [user, isAuthLoading, navigate]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();

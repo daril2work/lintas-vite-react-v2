@@ -64,6 +64,10 @@ export const MasterDataPage = () => {
             setIsModalOpen(false);
             resetForm();
         },
+        onError: (error: any) => {
+            console.error('Create Tool Error:', error);
+            alert(`Gagal menambah alat: ${error.message || 'Unknown error'}`);
+        }
     });
 
     const createStaffMutation = useMutation({
@@ -73,6 +77,10 @@ export const MasterDataPage = () => {
             setIsModalOpen(false);
             resetForm();
         },
+        onError: (error: any) => {
+            console.error('Create Staff Error:', error);
+            alert(`Gagal menambah staff: ${error.message || 'Unknown error'}`);
+        }
     });
 
     const createMachineMutation = useMutation({
@@ -82,6 +90,10 @@ export const MasterDataPage = () => {
             setIsModalOpen(false);
             resetForm();
         },
+        onError: (error: any) => {
+            console.error('Create Machine Error:', error);
+            alert(`Gagal menambah mesin: ${error.message || 'Unknown error'}`);
+        }
     });
 
     const updateToolMutation = useMutation({
@@ -91,6 +103,10 @@ export const MasterDataPage = () => {
             setEditingItem(null);
             setIsModalOpen(false);
         },
+        onError: (error: any) => {
+            console.error('Update Tool Error:', error);
+            alert(`Gagal update alat: ${error.message || 'Unknown error'}`);
+        }
     });
 
     const deleteToolMutation = useMutation({
@@ -108,6 +124,10 @@ export const MasterDataPage = () => {
             setIsModalOpen(false);
             setCredentialsModal({ isOpen: false, staff: null });
         },
+        onError: (error: any) => {
+            console.error('Update Staff Error:', error);
+            alert(`Gagal update staff: ${error.message || 'Unknown error'}`);
+        }
     });
 
     const deleteStaffMutation = useMutation({
@@ -115,6 +135,10 @@ export const MasterDataPage = () => {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['staff'] });
         },
+        onError: (error: any) => {
+            console.error('Delete Staff Error:', error);
+            alert(`Gagal hapus staff: ${error.message || 'Unknown error'}`);
+        }
     });
 
     const updateMachineMutation = useMutation({
@@ -124,6 +148,10 @@ export const MasterDataPage = () => {
             setEditingItem(null);
             setIsModalOpen(false);
         },
+        onError: (error: any) => {
+            console.error('Update Machine Error:', error);
+            alert(`Gagal update mesin: ${error.message || 'Unknown error'}`);
+        }
     });
 
     const deleteMachineMutation = useMutation({
@@ -131,6 +159,10 @@ export const MasterDataPage = () => {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['machines'] });
         },
+        onError: (error: any) => {
+            console.error('Delete Machine Error:', error);
+            alert(`Gagal hapus mesin: ${error.message || 'Unknown error'}`);
+        }
     });
 
     const resetForm = () => {
