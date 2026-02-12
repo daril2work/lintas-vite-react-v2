@@ -29,17 +29,21 @@ export const api = {
             role: s.role,
             department: s.department,
             employeeId: s.employee_id,
-            username: s.email
+            username: s.email,
+            password: s.password
         }));
     },
 
     createStaff: async (staff: Omit<Staff, 'id'>): Promise<void> => {
-        // In Supabase, creating a user usually happens via auth.signUp
-        // For now, we'll just insert into profiles if the auth user exists,
-        // but typically this should be handled by an Edge Function or trigger on auth.users.
-        // For this Alpha, we might skip direct profile creation here if it depends on Auth.
-        // Let's assume we are just updating the profile after auth.
-        console.warn("createStaff: Should be handled via Supabase Auth SignUp", staff);
+        const { error } = await supabase.from('profiles').insert([{
+            name: staff.name,
+            role: staff.role,
+            department: staff.department,
+            employee_id: staff.employeeId,
+            email: staff.username, // Map username to email
+            password: staff.password
+        }]);
+        if (error) throw error;
     },
 
     updateStaff: async (id: string, updates: Partial<Omit<Staff, 'id'>>): Promise<void> => {
@@ -47,7 +51,9 @@ export const api = {
             name: updates.name,
             role: updates.role,
             department: updates.department,
-            employee_id: updates.employeeId
+            employee_id: updates.employeeId,
+            email: updates.username,
+            password: updates.password
         }).eq('id', id);
         if (error) throw error;
     },
