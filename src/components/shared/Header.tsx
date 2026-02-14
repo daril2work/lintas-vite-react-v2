@@ -4,12 +4,13 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '../../services/api';
 import { useNavigate } from 'react-router-dom';
 import { useState, useRef, useEffect } from 'react';
-import { APP_CONFIG } from '../../constants/config';
+import { useAppConfig } from '../../context/ConfigContext';
 import { cn } from '../../utils/cn';
 import { OnboardingModal } from './OnboardingModal';
 
 export const Header = () => {
     const navigate = useNavigate();
+    const { config } = useAppConfig();
     const { toggleSidebar } = useUIStore();
     const [isNotificationOpen, setIsNotificationOpen] = useState(false);
     const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
@@ -170,7 +171,7 @@ export const Header = () => {
                 <div className="h-10 w-px bg-slate-100 mx-2"></div>
                 <div className="flex flex-col items-end">
                     <span className="text-sm font-black text-slate-900">{dateString}</span>
-                    <span className="text-[10px] uppercase font-bold tracking-widest text-accent-indigo">{APP_CONFIG.SYSTEM_STATUS}</span>
+                    <span className="text-[10px] uppercase font-bold tracking-widest text-accent-indigo">{config.SYSTEM_STATUS}</span>
                 </div>
             </div>
         </header>

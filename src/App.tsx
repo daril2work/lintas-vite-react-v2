@@ -14,6 +14,7 @@ import { WardRequestPage } from './pages/WardRequestPage';
 import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { ConfigProvider } from './context/ConfigContext';
 import { Toaster } from 'sonner';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode, allowedRoles?: string[] }> = ({ children, allowedRoles }) => {
@@ -34,27 +35,29 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode, allowedRoles?: strin
 function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <Toaster position="top-right" richColors closeButton />
-        <Routes>
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/login" element={<LoginPage />} />
+      <ConfigProvider>
+        <BrowserRouter>
+          <Toaster position="top-right" richColors closeButton />
+          <Routes>
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/login" element={<LoginPage />} />
 
-          <Route element={<MainLayout />}>
-            <Route path="/dashboard" element={<ProtectedRoute allowedRoles={['admin']}><DashboardPage /></ProtectedRoute>} />
-            <Route path="/intake" element={<ProtectedRoute allowedRoles={['admin', 'operator_cssd']}><IntakePage /></ProtectedRoute>} />
-            <Route path="/washing" element={<ProtectedRoute allowedRoles={['admin', 'operator_cssd']}><WashingPage /></ProtectedRoute>} />
-            <Route path="/packing" element={<ProtectedRoute allowedRoles={['admin', 'operator_cssd']}><PackingPage /></ProtectedRoute>} />
-            <Route path="/sterilizing" element={<ProtectedRoute allowedRoles={['admin', 'operator_cssd']}><SterilizingPage /></ProtectedRoute>} />
-            <Route path="/distribution" element={<ProtectedRoute allowedRoles={['admin', 'operator_cssd']}><DistributionPage /></ProtectedRoute>} />
-            <Route path="/ward/send" element={<ProtectedRoute allowedRoles={['admin', 'operator_ruangan']}><WardSendPage /></ProtectedRoute>} />
-            <Route path="/ward/receive" element={<ProtectedRoute allowedRoles={['admin', 'operator_ruangan']}><WardReceivePage /></ProtectedRoute>} />
-            <Route path="/ward/request" element={<ProtectedRoute allowedRoles={['admin', 'operator_ruangan']}><WardRequestPage /></ProtectedRoute>} />
-            <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><MasterDataPage /></ProtectedRoute>} />
-            <Route path="/reports" element={<ProtectedRoute allowedRoles={['admin']}><ReportsPage /></ProtectedRoute>} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
+            <Route element={<MainLayout />}>
+              <Route path="/dashboard" element={<ProtectedRoute allowedRoles={['admin']}><DashboardPage /></ProtectedRoute>} />
+              <Route path="/intake" element={<ProtectedRoute allowedRoles={['admin', 'operator_cssd']}><IntakePage /></ProtectedRoute>} />
+              <Route path="/washing" element={<ProtectedRoute allowedRoles={['admin', 'operator_cssd']}><WashingPage /></ProtectedRoute>} />
+              <Route path="/packing" element={<ProtectedRoute allowedRoles={['admin', 'operator_cssd']}><PackingPage /></ProtectedRoute>} />
+              <Route path="/sterilizing" element={<ProtectedRoute allowedRoles={['admin', 'operator_cssd']}><SterilizingPage /></ProtectedRoute>} />
+              <Route path="/distribution" element={<ProtectedRoute allowedRoles={['admin', 'operator_cssd']}><DistributionPage /></ProtectedRoute>} />
+              <Route path="/ward/send" element={<ProtectedRoute allowedRoles={['admin', 'operator_ruangan']}><WardSendPage /></ProtectedRoute>} />
+              <Route path="/ward/receive" element={<ProtectedRoute allowedRoles={['admin', 'operator_ruangan']}><WardReceivePage /></ProtectedRoute>} />
+              <Route path="/ward/request" element={<ProtectedRoute allowedRoles={['admin', 'operator_ruangan']}><WardRequestPage /></ProtectedRoute>} />
+              <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><MasterDataPage /></ProtectedRoute>} />
+              <Route path="/reports" element={<ProtectedRoute allowedRoles={['admin']}><ReportsPage /></ProtectedRoute>} />
+            </Route>
+          </Routes>
+        </BrowserRouter>
+      </ConfigProvider>
     </AuthProvider>
   );
 }

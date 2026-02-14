@@ -1,10 +1,11 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
-import { APP_CONFIG } from '../constants/config';
+import { useAppConfig } from '../context/ConfigContext';
 
 export const LandingPage: React.FC = () => {
     const navigate = useNavigate();
+    const { config } = useAppConfig();
 
     return (
         <div className="min-h-screen bg-[#050b18] text-white flex flex-col items-center justify-center relative overflow-hidden font-sans">
@@ -49,7 +50,7 @@ export const LandingPage: React.FC = () => {
                     Sistem Layanan Integrasi Sterilisasi (LINTAS)
                 </p>
                 <h1 className="text-4xl md:text-6xl lg:text-7xl font-black tracking-tight text-[#22d3ee] drop-shadow-xl">
-                    {APP_CONFIG.HOSPITAL_NAME}
+                    {config.HOSPITAL_NAME}
                 </h1>
 
                 <div className="pt-12">
@@ -66,10 +67,10 @@ export const LandingPage: React.FC = () => {
             {/* Bottom Credits */}
             <div className="absolute bottom-8 left-0 right-0 text-center space-y-2">
                 <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.3em]">
-                    {APP_CONFIG.APP_VERSION}
+                    {config.APP_VERSION}
                 </p>
                 <p className="text-slate-600 text-[8px] font-medium uppercase tracking-[0.2em]">
-                    {APP_CONFIG.APP_COPYRIGHT} • Intelligent CSSD Management
+                    {config.APP_COPYRIGHT} • Intelligent CSSD Management
                 </p>
             </div>
         </div>
