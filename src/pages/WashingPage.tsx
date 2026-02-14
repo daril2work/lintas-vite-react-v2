@@ -3,9 +3,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
-import { Waves, Play, Info, AlertTriangle, Monitor } from 'lucide-react';
+import { Waves, Play, Info, AlertTriangle, Monitor, ChevronRight } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { useAuth } from '../context/AuthContext';
+import { toast } from 'sonner';
 
 import { MASTER_DATA } from '../services/api';
 
@@ -15,6 +16,8 @@ export const WashingPage = () => {
     const [selectedMachine, setSelectedMachine] = useState<string | null>(null);
     const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
     const [programId, setProgramId] = useState('standard');
+    const [machinePage, setMachinePage] = useState(0);
+    const machinesPerPage = 2;
 
     const activeProgram = MASTER_DATA.WASHING_PROGRAMS.find(p => p.id === programId) || MASTER_DATA.WASHING_PROGRAMS[0];
 
@@ -74,8 +77,6 @@ export const WashingPage = () => {
         else setSelectedItems(new Set(dirtyItems.map(i => i.id)));
     };
 
-    const [showSuccess, setShowSuccess] = useState(false);
-
     const startWashingMutation = useMutation({
         mutationFn: async () => {
             if (!selectedMachine) return;
@@ -102,14 +103,17 @@ export const WashingPage = () => {
             // 2. Update status of selected items
             await api.batchUpdateToolStatus(validItems, 'washing');
 
-            // 3. Log the action
-            await api.addLog({
-                toolSetId: validItems[0], // Link to first item for ref
-                action: `Mulai Cuci (${activeProgram.name.toUpperCase()})`,
-                operatorId: user?.name || 'Operator',
-                machineId: selectedMachine,
-                notes: `Memulai siklus ${activeProgram.name} dengan ${validItems.length} alat.`
-            });
+            // 3. Logs
+            const logPromises = validItems.map(itemId =>
+                api.addLog({
+                    toolSetId: itemId,
+                    action: `Mulai Cuci (${activeProgram.name.toUpperCase()})`,
+                    operatorId: user?.name || 'Operator',
+                    machineId: selectedMachine,
+                    notes: `Memulai siklus ${activeProgram.name}.`
+                })
+            );
+            await Promise.all(logPromises);
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['inventory'] });
@@ -117,24 +121,20 @@ export const WashingPage = () => {
             queryClient.invalidateQueries({ queryKey: ['logs'] });
             setSelectedMachine(null);
             setSelectedItems(new Set());
-            setShowSuccess(true);
-            setTimeout(() => setShowSuccess(false), 3000);
+            toast.success('Berhasil!', {
+                description: 'Proses pencucian telah dimulai.',
+            });
         },
+        onError: (error: any) => {
+            console.error('Washing Error:', error);
+            toast.error('Gagal!', {
+                description: `Gagal memulai pencucian: ${error.message || 'Unknown error'}`,
+            });
+        }
     });
 
     return (
         <div className="space-y-8">
-            {showSuccess && (
-                <div className="fixed top-24 right-8 z-50 animate-in slide-in-from-right-full duration-300">
-                    <div className="bg-accent-emerald text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3">
-                        <CheckCircle2 size={24} />
-                        <div>
-                            <p className="font-black text-sm uppercase">Berhasil!</p>
-                            <p className="text-[10px] font-bold opacity-90">Mesin telah dimulai.</p>
-                        </div>
-                    </div>
-                </div>
-            )}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-3xl text-slate-900">Pencucian Alat</h1>
@@ -150,9 +150,36 @@ export const WashingPage = () => {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2 space-y-6">
-                    <h4 className="text-xs font-bold uppercase tracking-widest text-slate-400">Pilih Mesin Pencuci</h4>
+                    <div className="flex items-center justify-between">
+                        <h4 className="text-xs font-bold uppercase tracking-widest text-slate-400">Pilih Mesin Pencuci</h4>
+                        {washerMachines.length > machinesPerPage && (
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 w-8 p-0 rounded-lg text-slate-400 hover:text-slate-900"
+                                    onClick={() => setMachinePage(p => Math.max(0, p - 1))}
+                                    disabled={machinePage === 0}
+                                >
+                                    <ChevronRight size={16} className="rotate-180" />
+                                </Button>
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                    Page {machinePage + 1} / {Math.ceil(washerMachines.length / machinesPerPage)}
+                                </span>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 w-8 p-0 rounded-lg text-slate-400 hover:text-slate-900"
+                                    onClick={() => setMachinePage(p => Math.min(Math.ceil(washerMachines.length / machinesPerPage) - 1, p + 1))}
+                                    disabled={machinePage >= Math.ceil(washerMachines.length / machinesPerPage) - 1}
+                                >
+                                    <ChevronRight size={16} />
+                                </Button>
+                            </div>
+                        )}
+                    </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {washerMachines.map(machine => (
+                        {washerMachines.slice(machinePage * machinesPerPage, (machinePage + 1) * machinesPerPage).map(machine => (
                             <Card
                                 key={machine.id}
                                 className={cn(

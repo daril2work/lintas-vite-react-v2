@@ -27,7 +27,7 @@ const MENU_SECTIONS = [
     {
         id: 'utama',
         header: 'UTAMA',
-        allowedRoles: ['admin', 'operator_cssd', 'operator_ruangan'],
+        allowedRoles: ['admin'],
         items: [
             { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
         ]

@@ -6,6 +6,7 @@ import { Button } from '../components/ui/Button';
 import { Truck, UserCheck, MapPin, ClipboardList, PenTool, ListTodo, AlertCircle, CheckCircle2, Printer } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { useAuth } from '../context/AuthContext';
+import { toast } from 'sonner';
 
 export const DistributionPage = () => {
     const { user } = useAuth();
@@ -62,6 +63,9 @@ export const DistributionPage = () => {
             setSelectedStaff('');
             setShowSignature(false);
             setPhotoEvidence(null);
+            toast.success('Distribusi Berhasil!', {
+                description: `Alat telah diserahkan ke ${selectedStaff}.`,
+            });
         },
     });
 
@@ -71,6 +75,9 @@ export const DistributionPage = () => {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['requests'] });
             setSelectedRequest(null);
+            toast.info('Permintaan Diperbarui', {
+                description: 'Status permintaan telah ditandai sebagai stok kosong.',
+            });
         },
     });
 

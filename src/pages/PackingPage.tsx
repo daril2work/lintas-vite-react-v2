@@ -6,6 +6,7 @@ import { Button } from '../components/ui/Button';
 import { Box, Printer, CheckSquare, ListChecks, QrCode, Info } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { useAuth } from '../context/AuthContext';
+import { toast } from 'sonner';
 
 export const PackingPage = () => {
     const { user } = useAuth();
@@ -35,6 +36,9 @@ export const PackingPage = () => {
             queryClient.invalidateQueries({ queryKey: ['inventory'] });
             setSelectedItem(null);
             setCheckedItems(new Set());
+            toast.success('Pengepakan Selesai!', {
+                description: 'Item siap untuk proses sterilisasi.',
+            });
         },
     });
 

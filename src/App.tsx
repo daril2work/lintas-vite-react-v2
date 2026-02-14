@@ -14,6 +14,7 @@ import { WardRequestPage } from './pages/WardRequestPage';
 import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { Toaster } from 'sonner';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode, allowedRoles?: string[] }> = ({ children, allowedRoles }) => {
   const { user, isLoading } = useAuth();
@@ -21,8 +22,9 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode, allowedRoles?: strin
   if (isLoading) return <div className="min-h-screen bg-slate-900 flex items-center justify-center text-white">Loading...</div>;
   if (!user) return <Navigate to="/login" replace />;
   if (allowedRoles && !allowedRoles.includes(user.role)) {
-    // If operator_ruangan tries to access something restricted, send back to their home
+    // Role-based redirection when access is denied
     if (user.role === 'operator_ruangan') return <Navigate to="/ward/send" replace />;
+    if (user.role === 'operator_cssd') return <Navigate to="/intake" replace />;
     return <Navigate to="/dashboard" replace />;
   }
 
@@ -33,12 +35,13 @@ function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
+        <Toaster position="top-right" richColors closeButton />
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
 
           <Route element={<MainLayout />}>
-            <Route path="/dashboard" element={<ProtectedRoute allowedRoles={['admin', 'operator_cssd', 'operator_ruangan']}><DashboardPage /></ProtectedRoute>} />
+            <Route path="/dashboard" element={<ProtectedRoute allowedRoles={['admin']}><DashboardPage /></ProtectedRoute>} />
             <Route path="/intake" element={<ProtectedRoute allowedRoles={['admin', 'operator_cssd']}><IntakePage /></ProtectedRoute>} />
             <Route path="/washing" element={<ProtectedRoute allowedRoles={['admin', 'operator_cssd']}><WashingPage /></ProtectedRoute>} />
             <Route path="/packing" element={<ProtectedRoute allowedRoles={['admin', 'operator_cssd']}><PackingPage /></ProtectedRoute>} />

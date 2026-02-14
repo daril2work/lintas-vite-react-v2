@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, MASTER_DATA } from '../services/api';
 import { Card } from '../components/ui/Card';
@@ -6,6 +6,7 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Users, Database, Settings, Plus, Search, Edit2, Trash2, X, ChevronRight, PackageCheck, Box } from 'lucide-react';
 import { cn } from '../utils/cn';
+import { toast } from 'sonner';
 
 type TabType = 'staff' | 'inventory' | 'machines';
 
@@ -31,8 +32,16 @@ export const MasterDataPage = () => {
     const [editingItem, setEditingItem] = useState<any>(null);
     const [expandedGroup, setExpandedGroup] = useState<string | null>(null);
     const [credentialsModal, setCredentialsModal] = useState<{ isOpen: boolean, staff: any | null }>({ isOpen: false, staff: null });
+    const [currentPage, setCurrentPage] = useState(0);
+    const [searchQuery, setSearchQuery] = useState('');
+    const itemsPerPage = 10;
 
     const queryClient = useQueryClient();
+
+    useEffect(() => {
+        setCurrentPage(0);
+        setSearchQuery('');
+    }, [activeTab]);
 
     const { data: staff } = useQuery({ queryKey: ['staff'], queryFn: api.getStaff });
     const { data: inventory } = useQuery({ queryKey: ['inventory'], queryFn: api.getInventory });
@@ -63,10 +72,15 @@ export const MasterDataPage = () => {
             queryClient.invalidateQueries({ queryKey: ['inventory'] });
             setIsModalOpen(false);
             resetForm();
+            toast.success('Berhasil!', {
+                description: 'Data alat telah ditambahkan.',
+            });
         },
         onError: (error: any) => {
             console.error('Create Tool Error:', error);
-            alert(`Gagal menambah alat: ${error.message || 'Unknown error'}`);
+            toast.error('Gagal!', {
+                description: `Gagal menambah alat: ${error.message || 'Unknown error'}`,
+            });
         }
     });
 
@@ -76,10 +90,15 @@ export const MasterDataPage = () => {
             queryClient.invalidateQueries({ queryKey: ['staff'] });
             setIsModalOpen(false);
             resetForm();
+            toast.success('Berhasil!', {
+                description: 'Data staff telah ditambahkan.',
+            });
         },
         onError: (error: any) => {
             console.error('Create Staff Error:', error);
-            alert(`Gagal menambah staff: ${error.message || 'Unknown error'}`);
+            toast.error('Gagal!', {
+                description: `Gagal menambah staff: ${error.message || 'Unknown error'}`,
+            });
         }
     });
 
@@ -89,10 +108,15 @@ export const MasterDataPage = () => {
             queryClient.invalidateQueries({ queryKey: ['machines'] });
             setIsModalOpen(false);
             resetForm();
+            toast.success('Berhasil!', {
+                description: 'Data mesin telah ditambahkan.',
+            });
         },
         onError: (error: any) => {
             console.error('Create Machine Error:', error);
-            alert(`Gagal menambah mesin: ${error.message || 'Unknown error'}`);
+            toast.error('Gagal!', {
+                description: `Gagal menambah mesin: ${error.message || 'Unknown error'}`,
+            });
         }
     });
 
@@ -102,10 +126,15 @@ export const MasterDataPage = () => {
             queryClient.invalidateQueries({ queryKey: ['inventory'] });
             setEditingItem(null);
             setIsModalOpen(false);
+            toast.success('Berhasil!', {
+                description: 'Data alat telah diperbarui.',
+            });
         },
         onError: (error: any) => {
             console.error('Update Tool Error:', error);
-            alert(`Gagal update alat: ${error.message || 'Unknown error'}`);
+            toast.error('Gagal!', {
+                description: `Gagal update alat: ${error.message || 'Unknown error'}`,
+            });
         }
     });
 
@@ -113,6 +142,9 @@ export const MasterDataPage = () => {
         mutationFn: api.deleteTool,
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['inventory'] });
+            toast.success('Berhasil!', {
+                description: 'Data alat telah dihapus.',
+            });
         },
     });
 
@@ -123,10 +155,15 @@ export const MasterDataPage = () => {
             setEditingItem(null);
             setIsModalOpen(false);
             setCredentialsModal({ isOpen: false, staff: null });
+            toast.success('Berhasil!', {
+                description: 'Data staff telah diperbarui.',
+            });
         },
         onError: (error: any) => {
             console.error('Update Staff Error:', error);
-            alert(`Gagal update staff: ${error.message || 'Unknown error'}`);
+            toast.error('Gagal!', {
+                description: `Gagal update staff: ${error.message || 'Unknown error'}`,
+            });
         }
     });
 
@@ -134,10 +171,15 @@ export const MasterDataPage = () => {
         mutationFn: api.deleteStaff,
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['staff'] });
+            toast.success('Berhasil!', {
+                description: 'Data staff telah dihapus.',
+            });
         },
         onError: (error: any) => {
             console.error('Delete Staff Error:', error);
-            alert(`Gagal hapus staff: ${error.message || 'Unknown error'}`);
+            toast.error('Gagal!', {
+                description: `Gagal hapus staff: ${error.message || 'Unknown error'}`,
+            });
         }
     });
 
@@ -147,10 +189,15 @@ export const MasterDataPage = () => {
             queryClient.invalidateQueries({ queryKey: ['machines'] });
             setEditingItem(null);
             setIsModalOpen(false);
+            toast.success('Berhasil!', {
+                description: 'Data mesin telah diperbarui.',
+            });
         },
         onError: (error: any) => {
             console.error('Update Machine Error:', error);
-            alert(`Gagal update mesin: ${error.message || 'Unknown error'}`);
+            toast.error('Gagal!', {
+                description: `Gagal update mesin: ${error.message || 'Unknown error'}`,
+            });
         }
     });
 
@@ -158,10 +205,15 @@ export const MasterDataPage = () => {
         mutationFn: api.deleteMachine,
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['machines'] });
+            toast.success('Berhasil!', {
+                description: 'Data mesin telah dihapus.',
+            });
         },
         onError: (error: any) => {
             console.error('Delete Machine Error:', error);
-            alert(`Gagal hapus mesin: ${error.message || 'Unknown error'}`);
+            toast.error('Gagal!', {
+                description: `Gagal hapus mesin: ${error.message || 'Unknown error'}`,
+            });
         }
     });
 
@@ -255,6 +307,30 @@ export const MasterDataPage = () => {
         }
     };
 
+    // Filter Logic
+    const lowerQuery = (searchQuery || '').toLowerCase();
+
+    const filteredStaff = (staff || []).filter(s => {
+        if (!s) return false;
+        const name = String(s.name || '').toLowerCase();
+        const empId = String(s.employeeId || '').toLowerCase();
+        return name.includes(lowerQuery) || empId.includes(lowerQuery);
+    });
+
+    const filteredInventoryGroups = Object.values(groupedInventory).filter(g => {
+        if (!g) return false;
+        const name = String(g.name || '').toLowerCase();
+        const cat = String(g.category || '').toLowerCase();
+        return name.includes(lowerQuery) || cat.includes(lowerQuery);
+    });
+
+    const filteredMachines = (machines || []).filter(m => {
+        if (!m) return false;
+        const name = String(m.name || '').toLowerCase();
+        const type = String(m.type || '').toLowerCase();
+        return name.includes(lowerQuery) || type.includes(lowerQuery);
+    });
+
     // ... (rest of the component)
 
     // UI snippet for Modal content needs to be inserted here? No, I'll do it in a separate edit to keep it clean.
@@ -299,7 +375,12 @@ export const MasterDataPage = () => {
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                         <input
                             type="text"
-                            placeholder={`Cari ${activeTab}...`}
+                            placeholder={`Cari ${activeTab === 'staff' ? 'Nama/ID' : activeTab === 'inventory' ? 'Nama/Kategori' : 'Nama/Tipe'}...`}
+                            value={searchQuery}
+                            onChange={(e) => {
+                                setSearchQuery(e.target.value);
+                                setCurrentPage(0); // Reset to page 1 on search
+                            }}
                             className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-accent-indigo/5 focus:border-accent-indigo/30 transition-all"
                         />
                     </div>
@@ -338,14 +419,14 @@ export const MasterDataPage = () => {
                             )}
                         </thead>
                         <tbody className="divide-y divide-slate-50">
-                            {activeTab === 'staff' && staff?.map(item => (
+                            {activeTab === 'staff' && filteredStaff.slice(currentPage * itemsPerPage, (currentPage + 1) * itemsPerPage).map(item => (
                                 <tr key={item.id} className="group hover:bg-slate-50/50 transition-colors">
                                     <td className="px-8 py-5">
                                         <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-full bg-accent-indigo/10 text-accent-indigo flex items-center justify-center font-bold text-xs">
-                                                {item.name.charAt(0)}
+                                            <div className="w-8 h-8 rounded-full bg-accent-indigo/10 text-accent-indigo flex items-center justify-center font-bold text-xs uppercase">
+                                                {item.name?.charAt(0) || '?'}
                                             </div>
-                                            <span className="font-bold text-slate-900">{item.name}</span>
+                                            <span className="font-bold text-slate-900">{item.name || 'Unnamed Staff'}</span>
                                         </div>
                                     </td>
                                     <td className="px-8 py-5 text-sm text-slate-500 font-mono italic">{item.employeeId}</td>
@@ -405,7 +486,7 @@ export const MasterDataPage = () => {
                                 </tr>
                             ))}
 
-                            {activeTab === 'inventory' && Object.values(groupedInventory).map((group: any) => (
+                            {activeTab === 'inventory' && filteredInventoryGroups.slice(currentPage * itemsPerPage, (currentPage + 1) * itemsPerPage).map((group: any) => (
                                 <>
                                     <tr
                                         key={group.name}
@@ -529,7 +610,7 @@ export const MasterDataPage = () => {
                                 </>
                             ))}
 
-                            {activeTab === 'machines' && machines?.map(item => (
+                            {activeTab === 'machines' && filteredMachines.slice(currentPage * itemsPerPage, (currentPage + 1) * itemsPerPage).map(item => (
                                 <tr key={item.id} className="group hover:bg-slate-50/50 transition-colors">
                                     <td className="px-8 py-5 font-bold text-slate-900">{item.name}</td>
                                     <td className="px-8 py-5 text-sm text-slate-600 uppercase tracking-wider font-bold">{item.type}</td>
@@ -583,6 +664,67 @@ export const MasterDataPage = () => {
                         </tbody>
                     </table>
                 </div>
+
+                {/* Pagination Controls */}
+                {(() => {
+                    const dataSize = activeTab === 'staff' ? filteredStaff.length :
+                        activeTab === 'inventory' ? filteredInventoryGroups.length :
+                            filteredMachines.length;
+                    const totalPages = Math.ceil((dataSize || 0) / itemsPerPage);
+
+                    if (totalPages <= 1) return null;
+
+                    return (
+                        <div className="px-8 py-4 bg-slate-50/30 border-t border-slate-50 flex items-center justify-between">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                                Page {currentPage + 1} of {totalPages} ({dataSize} total)
+                            </p>
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 w-8 p-0 rounded-lg text-slate-400 hover:text-slate-900"
+                                    onClick={() => setCurrentPage(p => Math.max(0, p - 1))}
+                                    disabled={currentPage === 0}
+                                >
+                                    <ChevronRight size={16} className="rotate-180" />
+                                </Button>
+                                <div className="flex items-center gap-1">
+                                    {[...Array(totalPages)].map((_, i) => {
+                                        // Simple page numbering: show first 5, current-1, current, current+1, and last
+                                        if (totalPages > 7) {
+                                            if (i !== 0 && i !== totalPages - 1 && Math.abs(i - currentPage) > 1) {
+                                                if (i === 1 || i === totalPages - 2) return <span key={i} className="text-slate-300">...</span>;
+                                                return null;
+                                            }
+                                        }
+                                        return (
+                                            <button
+                                                key={i}
+                                                onClick={() => setCurrentPage(i)}
+                                                className={cn(
+                                                    "w-8 h-8 rounded-lg text-[10px] font-black transition-all",
+                                                    currentPage === i ? "bg-accent-indigo text-white shadow-md shadow-accent-indigo/20" : "text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+                                                )}
+                                            >
+                                                {i + 1}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 w-8 p-0 rounded-lg text-slate-400 hover:text-slate-900"
+                                    onClick={() => setCurrentPage(p => Math.min(totalPages - 1, p + 1))}
+                                    disabled={currentPage >= totalPages - 1}
+                                >
+                                    <ChevronRight size={16} />
+                                </Button>
+                            </div>
+                        </div>
+                    );
+                })()}
             </Card>
 
             {/* Modal Tambah Data */}

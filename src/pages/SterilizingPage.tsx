@@ -3,9 +3,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
-import { Settings, Thermometer, ShieldCheck, Zap, Timer, Activity } from 'lucide-react';
+import { Settings, Thermometer, ShieldCheck, Zap, Timer, Activity, ChevronRight } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { useAuth } from '../context/AuthContext';
+import { toast } from 'sonner';
 
 import { MASTER_DATA } from '../services/api';
 
@@ -15,6 +16,8 @@ export const SterilizingPage = () => {
     const [selectedMachine, setSelectedMachine] = useState<string | null>(null);
     const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
     const [programId, setProgramId] = useState('p1');
+    const [machinePage, setMachinePage] = useState(0);
+    const machinesPerPage = 2;
 
     const activeProgram = MASTER_DATA.STERILIZATION_PROGRAMS.find(p => p.id === programId) || MASTER_DATA.STERILIZATION_PROGRAMS[0];
     const [, setTick] = useState(0);
@@ -63,8 +66,6 @@ export const SterilizingPage = () => {
         setSelectedItems(newSelected);
     };
 
-    const [showSuccess, setShowSuccess] = useState(false);
-
     const startMutation = useMutation({
         mutationFn: async () => {
             if (!selectedMachine) return;
@@ -88,67 +89,68 @@ export const SterilizingPage = () => {
                 duration: duration
             });
 
-            // Log
-            await api.addLog({
-                toolSetId: validItems[0] || 'batch',
-                action: 'Start Sterilization',
-                operatorId: user?.name || 'Operator',
-                machineId: selectedMachine,
-                notes: `Started ${activeProgram.name} cycle (${duration}m) with ${validItems.length} items.`
-            });
+            // Logs
+            const logPromises = validItems.map(itemId =>
+                api.addLog({
+                    toolSetId: itemId,
+                    action: 'Start Sterilization',
+                    operatorId: user?.name || 'Operator',
+                    machineId: selectedMachine,
+                    notes: `Started ${activeProgram.name} cycle (${duration}m).`
+                })
+            );
+            await Promise.all(logPromises);
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['machines'] });
             setSelectedMachine(null);
             setSelectedItems(new Set());
-            setShowSuccess(true);
-            setTimeout(() => setShowSuccess(false), 3000);
+            toast.success('Berhasil!', {
+                description: 'Proses sterilisasi telah dimulai.',
+            });
+        },
+        onError: (error: any) => {
+            console.error('Sterilization Start Error:', error);
+            toast.error('Gagal!', {
+                description: `Gagal memulai sterilisasi: ${error.message || 'Unknown error'}`,
+            });
         }
     });
 
-    // In a real app, we would track which items are in which machine. 
-    // For this demo, we'll just move ALL 'sterilizing' items to 'sterile' when any machine finishes, 
-    // OR we could try to be smarter. For simplicity/demo: "Finish Cycle" basically clears current queue.
     const finishMutation = useMutation({
         mutationFn: async (machineId: string) => {
             await api.updateMachineStatus(machineId, 'idle');
-
-            // Move selected items to sterile (Assuming we knew which ones, but here we might just move all 'sterilizing' for demo flow, 
-            // or ideally we would have stored the batch ID. Let's just move ALL for now to unblock the flow, or rely on user selection again?)
-            // Better: We assume the user selects them, but they are already in the machine.
-            // WORKAROUND: We will just update ALL currently 'sterilizing' items to 'sterile' to simulate unloading the batch.
             const itemsToUpdate = queueItems.map(i => i.id);
             await api.batchUpdateToolStatus(itemsToUpdate, 'sterile');
 
-            await api.addLog({
-                toolSetId: 'batch',
-                action: 'Finish Sterilization',
-                operatorId: user?.name || 'Operator',
-                machineId: machineId,
-                notes: `Cycle completed. ${itemsToUpdate.length} items marked sterile.`
-            });
+            const logPromises = itemsToUpdate.map(itemId =>
+                api.addLog({
+                    toolSetId: itemId,
+                    action: 'Finish Sterilization',
+                    operatorId: user?.name || 'Operator',
+                    machineId: machineId,
+                    notes: `Cycle completed. Item marked sterile.`
+                })
+            );
+            await Promise.all(logPromises);
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['machines'] });
             queryClient.invalidateQueries({ queryKey: ['inventory'] });
-            setShowSuccess(true);
-            setTimeout(() => setShowSuccess(false), 3000);
+            toast.success('Selesai!', {
+                description: 'Alat telah ditandai sebagai steril.',
+            });
+        },
+        onError: (error: any) => {
+            console.error('Sterilization Finish Error:', error);
+            toast.error('Gagal!', {
+                description: `Gagal menyelesaikan sterilisasi: ${error.message || 'Unknown error'}`,
+            });
         }
     });
 
     return (
         <div className="space-y-8">
-            {showSuccess && (
-                <div className="fixed top-24 right-8 z-50 animate-in slide-in-from-right-full duration-300">
-                    <div className="bg-accent-emerald text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3">
-                        <ShieldCheck size={24} />
-                        <div>
-                            <p className="font-black text-sm uppercase">Berhasil!</p>
-                            <p className="text-[10px] font-bold opacity-90">Proses telah diperbarui.</p>
-                        </div>
-                    </div>
-                </div>
-            )}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-3xl text-slate-900">Sterilisasi</h1>
@@ -164,9 +166,36 @@ export const SterilizingPage = () => {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2 space-y-6">
-                    <h4 className="text-xs font-bold uppercase tracking-widest text-slate-400">Pilih Mesin Sterilisasi</h4>
+                    <div className="flex items-center justify-between">
+                        <h4 className="text-xs font-bold uppercase tracking-widest text-slate-400">Pilih Mesin Sterilisasi</h4>
+                        {sterilizers.length > machinesPerPage && (
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 w-8 p-0 rounded-lg text-slate-400 hover:text-slate-900"
+                                    onClick={() => setMachinePage(p => Math.max(0, p - 1))}
+                                    disabled={machinePage === 0}
+                                >
+                                    <ChevronRight size={16} className="rotate-180" />
+                                </Button>
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                    Page {machinePage + 1} / {Math.ceil(sterilizers.length / machinesPerPage)}
+                                </span>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 w-8 p-0 rounded-lg text-slate-400 hover:text-slate-900"
+                                    onClick={() => setMachinePage(p => Math.min(Math.ceil(sterilizers.length / machinesPerPage) - 1, p + 1))}
+                                    disabled={machinePage >= Math.ceil(sterilizers.length / machinesPerPage) - 1}
+                                >
+                                    <ChevronRight size={16} />
+                                </Button>
+                            </div>
+                        )}
+                    </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {sterilizers.map(machine => {
+                        {sterilizers.slice(machinePage * machinesPerPage, (machinePage + 1) * machinesPerPage).map(machine => {
                             const isDone = isCycleComplete(machine);
                             return (
                                 <Card

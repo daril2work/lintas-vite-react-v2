@@ -8,6 +8,7 @@ import { PackageSearch, Camera, History, AlertCircle, Trash2, CheckCircle2, Aler
 import { cn } from '../utils/cn';
 import type { ToolSet } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { toast } from 'sonner';
 
 interface BasketItem extends ToolSet {
     condition: 'good' | 'damaged';
@@ -44,8 +45,6 @@ export const IntakePage = () => {
         }
     }, [departments, selectedOrigin]);
 
-    const [showSuccess, setShowSuccess] = useState(false);
-
     const intakeMutation = useMutation({
         mutationFn: async (items: BasketItem[]) => {
             for (const item of items) {
@@ -70,9 +69,16 @@ export const IntakePage = () => {
             queryClient.invalidateQueries({ queryKey: ['inventory'] });
             setBasket([]);
             setSearch('');
-            setShowSuccess(true);
-            setTimeout(() => setShowSuccess(false), 3000);
+            toast.success('Berhasil!', {
+                description: 'Alat telah diterima di sistem.',
+            });
         },
+        onError: (error: any) => {
+            console.error('Intake Error:', error);
+            toast.error('Gagal!', {
+                description: `Gagal menerima alat: ${error.message || 'Unknown error'}`,
+            });
+        }
     });
 
     const addToBasket = (item: ToolSet, origin?: string) => {
@@ -122,17 +128,6 @@ export const IntakePage = () => {
 
     return (
         <div className="space-y-8">
-            {showSuccess && (
-                <div className="fixed top-24 right-8 z-50 animate-in slide-in-from-right-full duration-300">
-                    <div className="bg-accent-indigo text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3">
-                        <CheckCircle2 size={24} />
-                        <div>
-                            <p className="font-black text-sm uppercase">Berhasil!</p>
-                            <p className="text-[10px] font-bold opacity-90">Alat telah diterima di sistem.</p>
-                        </div>
-                    </div>
-                </div>
-            )}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-3xl text-slate-900">Penerimaan Alat</h1>

@@ -18,7 +18,14 @@ export const LoginPage: React.FC = () => {
     // Auto-redirect if already authenticated
     React.useEffect(() => {
         if (user && !isAuthLoading) {
-            navigate('/dashboard');
+            // Role-based dashboard/home redirection
+            if (user.role === 'operator_cssd') {
+                navigate('/intake');
+            } else if (user.role === 'operator_ruangan') {
+                navigate('/ward/send');
+            } else {
+                navigate('/dashboard');
+            }
         }
     }, [user, isAuthLoading, navigate]);
 
@@ -28,9 +35,11 @@ export const LoginPage: React.FC = () => {
         setIsLoading(true);
 
         try {
-            // Updated for Supabase Auth
             await login(email, password);
-            navigate('/dashboard');
+            // Redirection logic after successful login
+            // Note: login doesn't return the user in current impl but updates state, 
+            // but the useEffect above will handle the redirect. 
+            // However, it's safer to explicitly redirect here if useEffect hasn't triggered.
         } catch (err: any) {
             console.error(err);
             setError(err.message || 'Login gagal. Periksa email dan password Anda.');
