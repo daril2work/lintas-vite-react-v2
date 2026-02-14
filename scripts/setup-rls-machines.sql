@@ -16,8 +16,8 @@ DROP POLICY IF EXISTS "Machines are viewable by everyone" ON public.machines;
 CREATE POLICY "Machines are viewable by everyone" ON public.machines
   FOR SELECT USING (true);
 
--- Izinkan hanya 'admin' untuk Tambah, Ubah, dan Hapus (INSERT, UPDATE, DELETE)
-CREATE POLICY "Admins can manage machines" ON public.machines
+-- Izinkan 'admin' dan 'operator_cssd' untuk Tambah, Ubah, dan Hapus (INSERT, UPDATE, DELETE)
+CREATE POLICY "Authorized staff can manage machines" ON public.machines
   FOR ALL TO authenticated
-  USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'))
-  WITH CHECK (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'));
+  USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('admin', 'operator_cssd')))
+  WITH CHECK (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('admin', 'operator_cssd')));

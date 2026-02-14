@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import type { Staff, Machine, ToolSet, WorkflowLog, ToolRequest } from '../types';
+import type { Staff, Machine, ToolSet, WorkflowLog, ToolRequest, ImportantMessage } from '../types';
 
 export const MASTER_DATA = {
     DEPARTMENTS: ['CSSD', 'IGD', 'ICU', 'OK (Bedah)', 'Poli Umum', 'Poli Gigi', 'Logistik'],
@@ -101,7 +101,9 @@ export const api = {
             type: m.type,
             status: m.status,
             lastService: m.last_service,
-            nextService: m.next_service
+            nextService: m.next_service,
+            startTime: m.start_time,
+            duration: m.duration
         }));
     },
 
@@ -125,10 +127,17 @@ export const api = {
     },
 
     updateMachineStatus: async (id: string, status: Machine['status'], meta?: { startTime?: string, duration?: number }): Promise<void> => {
-        // Meta (startTime, duration) handling might need column adjustments or JSONB if strictly typed
-        // For now, assuming standard columns or handled elsewhere
-        if (meta) console.log("Meta data update:", meta); // Suppress unused warning
-        const { error } = await supabase.from('machines').update({ status }).eq('id', id);
+        const updateData: any = { status };
+        if (meta?.startTime) updateData.start_time = meta.startTime;
+        if (meta?.duration) updateData.duration = meta.duration;
+
+        // If status is idle, clear the timer data
+        if (status === 'idle') {
+            updateData.start_time = null;
+            updateData.duration = null;
+        }
+
+        const { error } = await supabase.from('machines').update(updateData).eq('id', id);
         if (error) throw error;
     },
 
@@ -184,8 +193,32 @@ export const api = {
     },
 
     getEfficiency: async (): Promise<number> => {
-        // Mock calculation for now or aggregate query
-        return 92.5;
+        try {
+            // Get today's logs
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            const { data: logs, error } = await supabase
+                .from('workflow_logs')
+                .select('*')
+                .gte('timestamp', today.toISOString());
+
+            if (error) throw error;
+
+            // Count completed sterilization and washing cycles
+            const completedCycles = logs?.filter(log =>
+                log.action.includes('Finish') || log.action.includes('Selesai')
+            ).length || 0;
+
+            // Target: 50 cycles per day (adjustable)
+            const dailyTarget = 50;
+            const efficiency = Math.min((completedCycles / dailyTarget) * 100, 100);
+
+            return Math.round(efficiency * 10) / 10; // Round to 1 decimal
+        } catch (error) {
+            console.error('Efficiency calculation error:', error);
+            return 0;
+        }
     },
 
     createRequest: async (request: Omit<ToolRequest, 'id' | 'timestamp' | 'status'>): Promise<void> => {
@@ -229,5 +262,27 @@ export const api = {
     updateAppConfig: async (key: string, value: string): Promise<void> => {
         const { error } = await supabase.from('app_config').update({ value, updated_at: new Date().toISOString() }).eq('key', key);
         if (error) throw error;
+    },
+
+    // Important Messages
+    getImportantMessages: async (): Promise<ImportantMessage[]> => {
+        const { data, error } = await supabase
+            .from('important_messages')
+            .select('*')
+            .eq('is_active', true)
+            .order('created_at', { ascending: false })
+            .limit(3);
+
+        if (error) throw error;
+
+        return (data || []).map((m: any) => ({
+            id: m.id,
+            title: m.title,
+            message: m.message,
+            type: m.type,
+            isActive: m.is_active,
+            createdAt: m.created_at,
+            expiresAt: m.expires_at
+        }));
     }
 };

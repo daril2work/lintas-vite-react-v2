@@ -29,7 +29,7 @@ CREATE POLICY "Admins can update app config" ON public.app_config
 INSERT INTO public.app_config (key, value, description)
 VALUES 
     ('HOSPITAL_NAME', 'RS Menur Provinsi Jawa Timur', 'Nama Rumah Sakit yang ditampilkan di UI'),
-    ('APP_VERSION', 'v2.3.0', 'Versi aplikasi saat ini'),
+    ('APP_VERSION', 'v2.3.1', 'Versi aplikasi saat ini'),
     ('SYSTEM_STATUS', 'System Online', 'Status operasional sistem')
 ON CONFLICT (key) DO UPDATE 
 SET value = EXCLUDED.value, 
