@@ -8,7 +8,7 @@ import { Users, Database, Settings, Plus, Search, Edit2, Trash2, X, ChevronRight
 import { cn } from '../utils/cn';
 import { toast } from 'sonner';
 
-type TabType = 'staff' | 'inventory' | 'machines';
+type TabType = 'staff' | 'inventory' | 'machines' | 'rooms';
 
 export const MasterDataPage = () => {
     const [activeTab, setActiveTab] = useState<TabType>('staff');
@@ -18,6 +18,7 @@ export const MasterDataPage = () => {
         barcode: '',
         category: MASTER_DATA.CATEGORIES[0],
         quantity: 1,
+        default_sterilization_method: MASTER_DATA.STERILIZATION_PROGRAMS[0].name,
         // Staff fields
         employeeId: '',
         department: MASTER_DATA.DEPARTMENTS[0],
@@ -25,7 +26,9 @@ export const MasterDataPage = () => {
         username: '',
         password: '',
         // Machine fields
-        type: MASTER_DATA.MACHINE_TYPES[0]
+        type: MASTER_DATA.MACHINE_TYPES[0],
+        // Room fields
+        pic_id: ''
     });
 
     // Edit & delete states
@@ -46,6 +49,7 @@ export const MasterDataPage = () => {
     const { data: staff } = useQuery({ queryKey: ['staff'], queryFn: api.getStaff });
     const { data: inventory } = useQuery({ queryKey: ['inventory'], queryFn: api.getInventory });
     const { data: machines } = useQuery({ queryKey: ['machines'], queryFn: api.getMachines });
+    const { data: rooms } = useQuery({ queryKey: ['rooms'], queryFn: api.getRooms });
 
     // Group inventory by name
     const groupedInventory = inventory?.reduce((acc, item) => {
@@ -217,12 +221,66 @@ export const MasterDataPage = () => {
         }
     });
 
+    const createRoomMutation = useMutation({
+        mutationFn: api.createRoom,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['rooms'] });
+            setIsModalOpen(false);
+            resetForm();
+            toast.success('Berhasil!', {
+                description: 'Data ruangan telah ditambahkan.',
+            });
+        },
+        onError: (error: any) => {
+            console.error('Create Room Error:', error);
+            toast.error('Gagal!', {
+                description: `Gagal menambah ruangan: ${error.message || 'Unknown error'}`,
+            });
+        }
+    });
+
+    const updateRoomMutation = useMutation({
+        mutationFn: ({ id, data }: { id: string, data: any }) => api.updateRoom(id, data),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['rooms'] });
+            setEditingItem(null);
+            setIsModalOpen(false);
+            toast.success('Berhasil!', {
+                description: 'Data ruangan telah diperbarui.',
+            });
+        },
+        onError: (error: any) => {
+            console.error('Update Room Error:', error);
+            toast.error('Gagal!', {
+                description: `Gagal update ruangan: ${error.message || 'Unknown error'}`,
+            });
+        }
+    });
+
+    const deleteRoomMutation = useMutation({
+        mutationFn: api.deleteRoom,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['rooms'] });
+            toast.success('Berhasil!', {
+                description: 'Data ruangan telah dihapus.',
+            });
+        },
+        onError: (error: any) => {
+            console.error('Delete Room Error:', error);
+            toast.error('Gagal!', {
+                description: `Gagal hapus ruangan: ${error.message || 'Unknown error'}`,
+            });
+        }
+    });
+
     const resetForm = () => {
         setFormData({
             name: '', barcode: '', category: MASTER_DATA.CATEGORIES[0], quantity: 1,
             employeeId: '', department: MASTER_DATA.DEPARTMENTS[0], role: MASTER_DATA.ROLES[0],
             username: '', password: '',
-            type: MASTER_DATA.MACHINE_TYPES[0]
+            type: MASTER_DATA.MACHINE_TYPES[0],
+            pic_id: '',
+            default_sterilization_method: MASTER_DATA.STERILIZATION_PROGRAMS[0].name
         });
         setEditingItem(null);
     };
@@ -231,6 +289,7 @@ export const MasterDataPage = () => {
         { id: 'staff', label: 'Staff & User', icon: Users },
         { id: 'inventory', label: 'Inventory (Set/Alat)', icon: Database },
         { id: 'machines', label: 'Daftar Mesin', icon: Settings },
+        { id: 'rooms', label: 'Ruangan Tujuan', icon: PackageCheck },
     ];
 
     const generateSequentialBarcode = (baseBarcode: string, index: number) => {
@@ -252,7 +311,12 @@ export const MasterDataPage = () => {
             if (editingItem) {
                 updateToolMutation.mutate({
                     id: editingItem.id,
-                    data: { name: formData.name, barcode: formData.barcode, category: formData.category }
+                    data: {
+                        name: formData.name,
+                        barcode: formData.barcode,
+                        category: formData.category,
+                        default_sterilization_method: formData.default_sterilization_method
+                    }
                 });
             } else {
                 const qty = formData.quantity || 1;
@@ -261,7 +325,8 @@ export const MasterDataPage = () => {
                     await createToolMutation.mutateAsync({
                         name: formData.name,
                         barcode: newBarcode,
-                        category: formData.category
+                        category: formData.category,
+                        default_sterilization_method: formData.default_sterilization_method
                     });
                 }
             }
@@ -304,6 +369,18 @@ export const MasterDataPage = () => {
                     type: formData.type as any
                 });
             }
+        } else if (activeTab === 'rooms') {
+            if (editingItem) {
+                updateRoomMutation.mutate({
+                    id: editingItem.id,
+                    data: { name: formData.name, pic_id: formData.pic_id }
+                });
+            } else {
+                createRoomMutation.mutate({
+                    name: formData.name,
+                    pic_id: formData.pic_id
+                });
+            }
         }
     };
 
@@ -329,6 +406,13 @@ export const MasterDataPage = () => {
         const name = String(m.name || '').toLowerCase();
         const type = String(m.type || '').toLowerCase();
         return name.includes(lowerQuery) || type.includes(lowerQuery);
+    });
+
+    const filteredRooms = (rooms || []).filter(r => {
+        if (!r) return false;
+        const name = String(r.name || '').toLowerCase();
+        const pic = String(r.pic_name || '').toLowerCase();
+        return name.includes(lowerQuery) || pic.includes(lowerQuery);
     });
 
     // ... (rest of the component)
@@ -375,7 +459,7 @@ export const MasterDataPage = () => {
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                         <input
                             type="text"
-                            placeholder={`Cari ${activeTab === 'staff' ? 'Nama/ID' : activeTab === 'inventory' ? 'Nama/Kategori' : 'Nama/Tipe'}...`}
+                            placeholder={`Cari ${activeTab === 'staff' ? 'Nama/ID' : activeTab === 'inventory' ? 'Nama/Kategori' : activeTab === 'machines' ? 'Nama/Tipe' : 'Nama/PIC'}...`}
                             value={searchQuery}
                             onChange={(e) => {
                                 setSearchQuery(e.target.value);
@@ -414,6 +498,14 @@ export const MasterDataPage = () => {
                                     <th className="px-8 py-4">Model / Type</th>
                                     <th className="px-8 py-4">Status</th>
                                     <th className="px-8 py-4">Last Maintenance</th>
+                                    <th className="px-8 py-4"></th>
+                                </tr>
+                            )}
+                            {activeTab === 'rooms' && (
+                                <tr>
+                                    <th className="px-8 py-4">Nama Ruangan</th>
+                                    <th className="px-8 py-4">PIC Ruangan</th>
+                                    <th className="px-8 py-4">Tgl Terdaftar</th>
                                     <th className="px-8 py-4"></th>
                                 </tr>
                             )}
@@ -462,7 +554,9 @@ export const MasterDataPage = () => {
                                                     role: item.role,
                                                     username: item.username || '',
                                                     password: item.password || '',
-                                                    type: 'washer'
+                                                    type: 'washer',
+                                                    pic_id: '',
+                                                    default_sterilization_method: MASTER_DATA.STERILIZATION_PROGRAMS[0].name
                                                 });
                                                 setIsModalOpen(true);
                                             }}
@@ -577,7 +671,9 @@ export const MasterDataPage = () => {
                                                                                     role: MASTER_DATA.ROLES[0],
                                                                                     username: '',
                                                                                     password: '',
-                                                                                    type: 'washer'
+                                                                                    type: 'washer',
+                                                                                    pic_id: '',
+                                                                                    default_sterilization_method: item.default_sterilization_method || MASTER_DATA.STERILIZATION_PROGRAMS[0].name
                                                                                 });
                                                                                 setIsModalOpen(true);
                                                                             }}
@@ -638,7 +734,9 @@ export const MasterDataPage = () => {
                                                     role: MASTER_DATA.ROLES[0],
                                                     username: '',
                                                     password: '',
-                                                    type: item.type as any
+                                                    type: item.type as any,
+                                                    pic_id: '',
+                                                    default_sterilization_method: (item as any).default_sterilization_method || MASTER_DATA.STERILIZATION_PROGRAMS[0].name
                                                 });
                                                 setIsModalOpen(true);
                                             }}
@@ -661,6 +759,62 @@ export const MasterDataPage = () => {
                                     </td>
                                 </tr>
                             ))}
+                            {activeTab === 'rooms' && filteredRooms.slice(currentPage * itemsPerPage, (currentPage + 1) * itemsPerPage).map(item => (
+                                <tr key={item.id} className="group hover:bg-slate-50/50 transition-colors">
+                                    <td className="px-8 py-5 font-bold text-slate-900">{item.name}</td>
+                                    <td className="px-8 py-5">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-full bg-accent-emerald/10 text-accent-emerald flex items-center justify-center font-bold text-xs uppercase">
+                                                {item.pic_name?.charAt(0) || '?'}
+                                            </div>
+                                            <div>
+                                                <p className="font-bold text-slate-900">{item.pic_name || 'No PIC'}</p>
+                                                <p className="text-[10px] text-slate-400 uppercase font-bold tracking-widest">Penanggung Jawab</p>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td className="px-8 py-5 text-sm text-slate-500">
+                                        {item.createdAt ? new Date(item.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
+                                    </td>
+                                    <td className="px-8 py-5 text-right flex justify-end gap-2">
+                                        <button
+                                            onClick={() => {
+                                                setEditingItem(item);
+                                                setFormData({
+                                                    name: item.name,
+                                                    barcode: '',
+                                                    category: MASTER_DATA.CATEGORIES[0],
+                                                    quantity: 1,
+                                                    employeeId: '',
+                                                    department: MASTER_DATA.DEPARTMENTS[0],
+                                                    role: MASTER_DATA.ROLES[0],
+                                                    username: '',
+                                                    password: '',
+                                                    type: 'washer',
+                                                    pic_id: item.pic_id,
+                                                    default_sterilization_method: (item as any).default_sterilization_method || MASTER_DATA.STERILIZATION_PROGRAMS[0].name
+                                                });
+                                                setIsModalOpen(true);
+                                            }}
+                                            className="p-1.5 text-slate-400 hover:text-accent-indigo hover:bg-accent-indigo/10 rounded transition-colors"
+                                            title="Edit Ruangan"
+                                        >
+                                            <Edit2 size={16} />
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                if (confirm(`Apakah Anda yakin ingin menghapus ruangan "${item.name}"?`)) {
+                                                    deleteRoomMutation.mutate(item.id);
+                                                }
+                                            }}
+                                            className="p-1.5 text-slate-400 hover:text-accent-rose hover:bg-accent-rose/10 rounded transition-colors"
+                                            title="Hapus Ruangan"
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))}
                         </tbody>
                     </table>
                 </div>
@@ -669,7 +823,8 @@ export const MasterDataPage = () => {
                 {(() => {
                     const dataSize = activeTab === 'staff' ? filteredStaff.length :
                         activeTab === 'inventory' ? filteredInventoryGroups.length :
-                            filteredMachines.length;
+                            activeTab === 'machines' ? filteredMachines.length :
+                                filteredRooms.length;
                     const totalPages = Math.ceil((dataSize || 0) / itemsPerPage);
 
                     if (totalPages <= 1) return null;
@@ -733,7 +888,7 @@ export const MasterDataPage = () => {
                     <Card className="w-full max-w-lg shadow-2xl animate-in zoom-in-95 duration-200">
                         <div className="flex items-center justify-between mb-6">
                             <h3 className="text-xl font-black text-slate-900">
-                                {editingItem ? 'Edit Data' : `Tambah ${activeTab === 'staff' ? 'Staff' : activeTab === 'inventory' ? 'Alat' : 'Mesin'} Baru`}
+                                {editingItem ? 'Edit Data' : `Tambah ${activeTab === 'staff' ? 'Staff' : activeTab === 'inventory' ? 'Alat' : activeTab === 'machines' ? 'Mesin' : 'Ruangan'} Baru`}
                             </h3>
                             <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400">
                                 <X size={20} />
@@ -786,6 +941,16 @@ export const MasterDataPage = () => {
                                             onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                                         >
                                             {MASTER_DATA.CATEGORIES.map(c => <option key={c}>{c}</option>)}
+                                        </select>
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest pl-1">Metode Steril Default</label>
+                                        <select
+                                            className="w-full p-4 rounded-2xl border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:ring-4 focus:ring-accent-indigo/5 transition-all"
+                                            value={formData.default_sterilization_method}
+                                            onChange={(e) => setFormData({ ...formData, default_sterilization_method: e.target.value })}
+                                        >
+                                            {MASTER_DATA.STERILIZATION_PROGRAMS.map(p => <option key={p.name} value={p.name}>{p.name}</option>)}
                                         </select>
                                     </div>
                                 </>
@@ -891,6 +1056,36 @@ export const MasterDataPage = () => {
                                 </>
                             )}
 
+                            {/* Form Rooms */}
+                            {activeTab === 'rooms' && (
+                                <>
+                                    <div className="space-y-1.5">
+                                        <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest pl-1">Nama Ruangan</label>
+                                        <Input
+                                            required
+                                            placeholder="Contoh: Poli Umum"
+                                            value={formData.name}
+                                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                        />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest pl-1">Person In Charge (PIC)</label>
+                                        <select
+                                            required
+                                            className="w-full p-4 rounded-2xl border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:ring-4 focus:ring-accent-indigo/5 transition-all"
+                                            value={formData.pic_id}
+                                            onChange={(e) => setFormData({ ...formData, pic_id: e.target.value })}
+                                        >
+                                            <option value="" disabled>Pilih PIC dari Staff...</option>
+                                            {(staff || []).map(s => (
+                                                <option key={s.id} value={s.id}>{s.name} ({s.department})</option>
+                                            ))}
+                                        </select>
+                                        <p className="text-[10px] text-slate-400 italic ml-1">Staff terpilih akan menjadi penanggung jawab distribusi alat.</p>
+                                    </div>
+                                </>
+                            )}
+
                             <div className="pt-4 flex gap-3">
                                 <Button variant="secondary" className="flex-1" type="button" onClick={() => setIsModalOpen(false)}>Batal</Button>
                                 <Button className="flex-1" type="submit" disabled={createToolMutation.isPending || updateToolMutation.isPending || createStaffMutation.isPending || createMachineMutation.isPending}>
@@ -958,7 +1153,9 @@ export const MasterDataPage = () => {
                                         role: st.role,
                                         username: st.username || '',
                                         password: st.password || '',
-                                        type: 'washer'
+                                        type: 'washer',
+                                        pic_id: st.pic_id || '',
+                                        default_sterilization_method: MASTER_DATA.STERILIZATION_PROGRAMS[0].name
                                     });
                                     setCredentialsModal({ isOpen: false, staff: null });
                                     setIsModalOpen(true);
@@ -975,8 +1172,8 @@ export const MasterDataPage = () => {
                             </Button>
                         </div>
                     </Card>
-                </div>
+                </div >
             )}
-        </div>
+        </div >
     );
 };

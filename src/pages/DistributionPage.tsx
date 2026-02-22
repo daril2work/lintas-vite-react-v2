@@ -13,15 +13,18 @@ export const DistributionPage = () => {
     const queryClient = useQueryClient();
     const [selectedItem, setSelectedItem] = useState<string | null>(null);
     const [selectedRequest, setSelectedRequest] = useState<string | null>(null);
+    const [selectedRoom, setSelectedRoom] = useState<string | null>(null);
     const [selectedStaff, setSelectedStaff] = useState('');
     const [showSignature, setShowSignature] = useState(false);
     const [activeTab, setActiveTab] = useState<'ready' | 'requests'>('ready');
     const [verificationMethod, setVerificationMethod] = useState<'signature' | 'photo' | 'print'>('signature');
     const [photoEvidence, setPhotoEvidence] = useState<string | null>(null);
+    const [showPrintModal, setShowPrintModal] = useState(false);
 
     const { data: inventory } = useQuery({ queryKey: ['inventory'], queryFn: api.getInventory });
     const { data: requests } = useQuery({ queryKey: ['requests'], queryFn: api.getRequests });
     const { data: staffList } = useQuery({ queryKey: ['staff'], queryFn: api.getStaff });
+    const { data: rooms } = useQuery({ queryKey: ['rooms'], queryFn: api.getRooms });
 
     const sterileItems = inventory?.filter(item => item.status === 'sterile') || [];
     const pendingRequests = requests?.filter(r => r.status === 'pending') || [];
@@ -42,11 +45,12 @@ export const DistributionPage = () => {
             await api.updateToolStatus(id, 'distributed');
 
             // Log the distribution
+            const roomName = rooms?.find(r => r.id === selectedRoom)?.name || 'Unknown Room';
             await api.addLog({
                 toolSetId: id,
                 action: 'Distribution',
                 operatorId: user?.name || 'Operator',
-                notes: `Distributed to ${selectedStaff}. ${activeTab === 'requests' ? 'Fulfilled request.' : ''}`,
+                notes: `Distributed to ${selectedStaff} (${roomName}). ${activeTab === 'requests' ? 'Fulfilled request.' : ''}`,
                 evidence: verificationMethod === 'photo' ? (photoEvidence ?? undefined) : verificationMethod === 'print' ? 'Handover Form (Printed)' : 'Digital Signature'
             });
 
@@ -60,6 +64,7 @@ export const DistributionPage = () => {
             queryClient.invalidateQueries({ queryKey: ['logs'] });
             setSelectedItem(null);
             setSelectedRequest(null);
+            setSelectedRoom(null);
             setSelectedStaff('');
             setShowSignature(false);
             setPhotoEvidence(null);
@@ -139,7 +144,17 @@ export const DistributionPage = () => {
                                             "hover:border-accent-indigo cursor-pointer transition-all border-2",
                                             selectedRequest === req.id ? "border-accent-indigo bg-accent-indigo/5" : "border-transparent"
                                         )}
-                                        onClick={() => setSelectedRequest(req.id)}
+                                        onClick={() => {
+                                            setSelectedRequest(req.id);
+                                            // Auto-select room and staff if request unit matches a room
+                                            const matchingRoom = rooms?.find(r => r.name.toLowerCase() === req.ward.toLowerCase());
+                                            if (matchingRoom) {
+                                                setSelectedRoom(matchingRoom.id);
+                                                if (matchingRoom.pic_name) {
+                                                    setSelectedStaff(matchingRoom.pic_name);
+                                                }
+                                            }
+                                        }}
                                     >
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-4">
@@ -269,7 +284,16 @@ export const DistributionPage = () => {
                                                 <p className="font-bold text-slate-900 truncate">{item.name}</p>
                                                 <p className="text-xs text-slate-500 uppercase font-mono tracking-wider">{item.barcode}</p>
                                                 <div className="mt-3 flex items-center gap-2">
-                                                    <span className="px-2 py-0.5 bg-slate-100 text-[10px] font-black rounded uppercase">Exp: 03-05-2026</span>
+                                                    <span className="px-2 py-0.5 bg-slate-100 text-[10px] font-black rounded uppercase">
+                                                        {item.expire_date
+                                                            ? `Exp: ${new Date(item.expire_date).toLocaleDateString('id-ID')}`
+                                                            : 'Exp: -'}
+                                                    </span>
+                                                    {item.sterilization_method && (
+                                                        <span className="px-2 py-0.5 bg-accent-indigo/10 text-accent-indigo text-[10px] font-black rounded uppercase">
+                                                            {item.sterilization_method.split(' ')[0]}
+                                                        </span>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>
@@ -287,18 +311,30 @@ export const DistributionPage = () => {
                                 <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6">
                                     <h4 className="text-xs font-bold uppercase tracking-widest text-slate-400">Tujuan Pengiriman</h4>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        {[
-                                            { name: 'Instalasi Bedah Sentral', floor: 'Lantai 3', icon: MapPin },
-                                            { name: 'IGD / Trauma Center', floor: 'Lantai 1', icon: MapPin },
-                                        ].map(unit => (
-                                            <Card key={unit.name} className="hover:border-accent-indigo cursor-pointer group">
+                                        {(rooms || []).map(room => (
+                                            <Card
+                                                key={room.id}
+                                                className={cn(
+                                                    "hover:border-accent-indigo cursor-pointer group transition-all border-2",
+                                                    selectedRoom === room.id ? "border-accent-indigo bg-accent-indigo/5" : "border-transparent"
+                                                )}
+                                                onClick={() => {
+                                                    setSelectedRoom(room.id);
+                                                    if (room.pic_name) {
+                                                        setSelectedStaff(room.pic_name);
+                                                    }
+                                                }}
+                                            >
                                                 <div className="flex items-center gap-4">
-                                                    <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 group-hover:text-accent-indigo">
-                                                        <unit.icon size={20} />
+                                                    <div className={cn(
+                                                        "w-10 h-10 rounded-xl flex items-center justify-center transition-colors",
+                                                        selectedRoom === room.id ? "bg-accent-indigo text-white" : "bg-slate-100 text-slate-400 group-hover:text-accent-indigo"
+                                                    )}>
+                                                        <MapPin size={20} />
                                                     </div>
                                                     <div>
-                                                        <p className="text-sm font-bold text-slate-900">{unit.name}</p>
-                                                        <p className="text-[10px] text-slate-500 uppercase font-bold">{unit.floor}</p>
+                                                        <p className="text-sm font-bold text-slate-900">{room.name}</p>
+                                                        <p className="text-[10px] text-slate-500 uppercase font-bold">PIC: {room.pic_name || 'Belum Diatur'}</p>
                                                     </div>
                                                 </div>
                                             </Card>
@@ -324,7 +360,15 @@ export const DistributionPage = () => {
                                 <select
                                     className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:ring-4 focus:ring-slate-900/5 transition-all"
                                     value={selectedStaff}
-                                    onChange={(e) => setSelectedStaff(e.target.value)}
+                                    onChange={(e) => {
+                                        const staffName = e.target.value;
+                                        setSelectedStaff(staffName);
+                                        // Auto-select room based on PIC
+                                        const roomForStaff = rooms?.find(r => r.pic_name === staffName);
+                                        if (roomForStaff) {
+                                            setSelectedRoom(roomForStaff.id);
+                                        }
+                                    }}
                                 >
                                     <option value="">Pilih Staff...</option>
                                     {staffList?.map(s => (
@@ -429,7 +473,12 @@ export const DistributionPage = () => {
                                                 <p className="text-xs font-bold text-slate-900">Form Serah Terima (PDF)</p>
                                                 <p className="text-[10px] text-slate-500 mt-1">Gunakan form cetak jika tidak memungkinkan tanda tangan digital.</p>
                                             </div>
-                                            <Button variant="secondary" size="sm" className="bg-white border-slate-200 text-slate-600 h-9 gap-2">
+                                            <Button
+                                                variant="secondary"
+                                                size="sm"
+                                                className="bg-white border-slate-200 text-slate-600 h-9 gap-2"
+                                                onClick={() => setShowPrintModal(true)}
+                                            >
                                                 <Printer size={14} />
                                                 Cetak Sekarang
                                             </Button>
@@ -464,6 +513,288 @@ export const DistributionPage = () => {
                     </Card>
                 </div>
             </div>
+            {/* Handover Form Print Modal */}
+            {showPrintModal && selectedTool && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm print:p-0 print:bg-white print:static cursor-pointer"
+                    onClick={() => setShowPrintModal(false)}
+                >
+                    <div
+                        className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden print:shadow-none print:w-full print:max-w-none print:rounded-none cursor-default"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="p-6 border-b border-slate-100 flex justify-between items-center print:hidden">
+                            <h3 className="font-bold text-slate-800 text-lg uppercase tracking-tight flex items-center gap-2">
+                                <Printer size={20} className="text-accent-indigo" />
+                                Preview Form Serah Terima
+                            </h3>
+                            <button onClick={() => setShowPrintModal(false)} className="text-slate-400 hover:text-slate-600 transition-colors p-2 hover:bg-slate-100 rounded-full">
+                                <span className="sr-only">Close</span>
+                                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                        </div>
+
+                        <div className="p-10 bg-slate-100 print:bg-white print:p-0 flex justify-center max-h-[70vh] overflow-y-auto print:max-h-none">
+                            {/* Document Layout */}
+                            <div id="print-handover-form" className="handover-document w-[21cm] min-h-[14.8cm] bg-white p-[1.2cm] shadow-sm print:shadow-none print:w-full">
+                                {/* Letterhead */}
+                                <div className="border-b-4 border-slate-900 pb-4 mb-6 flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-12 h-12 bg-slate-900 rounded-xl flex items-center justify-center text-white font-black text-xl">L</div>
+                                        <div>
+                                            <h1 className="text-xl font-black tracking-tighter text-slate-900">LINTAS CSSD</h1>
+                                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest leading-tight">Digital Sterilization System</p>
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <h2 className="text-base font-black text-slate-900 uppercase">Form Serah Terima</h2>
+                                        <p className="text-[10px] font-mono text-slate-500">REF: {new Date().getTime().toString(16).toUpperCase()}</p>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-6">
+                                    {/* Info Grid */}
+                                    <div className="grid grid-cols-2 gap-6 text-sm">
+                                        <div className="space-y-3">
+                                            <div>
+                                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Unit Pengirim</p>
+                                                <p className="font-bold text-slate-900 text-xs">INSTALASI CSSD</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Unit Tujuan</p>
+                                                <p className="font-bold text-slate-900 text-xs uppercase">
+                                                    {rooms?.find(r => r.id === selectedRoom)?.name || 'Unit Pelayanan'}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="space-y-3 text-right">
+                                            <div>
+                                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Tanggal & Waktu</p>
+                                                <p className="font-bold text-slate-900 text-xs">{new Date().toLocaleString('id-ID')}</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Petugas CSSD (Operator)</p>
+                                                <p className="font-bold text-slate-900 text-xs capitalize">{user?.name || '---'}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Item Table */}
+                                    <div className="border border-slate-200 rounded-lg overflow-hidden">
+                                        <table className="w-full text-left text-xs border-collapse">
+                                            <thead className="bg-slate-50 border-b border-slate-200">
+                                                <tr>
+                                                    <th className="px-3 py-2 font-black text-[9px] uppercase text-slate-500 border-r border-slate-200">No.</th>
+                                                    <th className="px-3 py-2 font-black text-[9px] uppercase text-slate-500 border-r border-slate-200">Nama Alat / Set</th>
+                                                    <th className="px-3 py-2 font-black text-[9px] uppercase text-slate-500 border-r border-slate-200">Barcode / ID</th>
+                                                    <th className="px-3 py-2 font-black text-[9px] uppercase text-slate-500">Jumlah</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-100">
+                                                <tr>
+                                                    <td className="px-3 py-3 text-slate-500 border-r border-slate-100">1.</td>
+                                                    <td className="px-3 py-3 font-bold text-slate-900">{selectedTool.name}</td>
+                                                    <td className="px-3 py-3 font-mono text-slate-600">{selectedTool.barcode}</td>
+                                                    <td className="px-3 py-3 font-bold text-slate-900 text-center">1 SET</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+
+                                    {/* Signatures - Compacted for A4 */}
+                                    <div className="grid grid-cols-2 mt-6 gap-8">
+                                        <div className="text-center">
+                                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-12">Petugas Penyerah (CSSD)</p>
+                                            <div className="space-y-1 inline-block w-40 border-t border-slate-900 pt-1">
+                                                <p className="text-[10px] font-bold text-slate-900 uppercase">({user?.name || 'Operator'})</p>
+                                            </div>
+                                        </div>
+                                        <div className="text-center">
+                                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-12">Petugas Penerima (Unit)</p>
+                                            <div className="space-y-1 inline-block w-40 border-t border-slate-900 pt-1">
+                                                <p className="text-[10px] font-bold text-slate-900 uppercase">({selectedStaff || '...............'})</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="mt-8 pt-4 border-t border-slate-100 text-[8px] text-center text-slate-400 font-mono italic">
+                                    Dokumen ini dihasilkan secara otomatis oleh sistem LINTAS CSSD pada {new Date().toISOString()} • Cetakan Sah Handover Form.
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="p-6 bg-white border-t border-slate-100 flex gap-4">
+                            <button
+                                className="flex-1 h-12 rounded-xl font-bold uppercase tracking-wider transition-all bg-slate-100 text-slate-600 hover:bg-slate-200 active:scale-95"
+                                onClick={() => setShowPrintModal(false)}
+                            >
+                                Tutup
+                            </button>
+                            <button
+                                className="flex-[2] h-12 rounded-xl font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 bg-slate-900 text-white shadow-xl shadow-slate-900/10 hover:bg-slate-800 active:scale-95"
+                                onClick={() => {
+                                    const roomName = rooms?.find(r => r.id === selectedRoom)?.name || 'Unit Pelayanan';
+                                    const refCode = new Date().getTime().toString(16).toUpperCase();
+                                    const dateStr = new Date().toLocaleString('id-ID');
+                                    const isoStr = new Date().toISOString();
+                                    const operatorName = user?.name || '---';
+
+                                    const htmlContent = `
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <title>Form Serah Terima - ${refCode}</title>
+  <style>
+    @page { size: A4 portrait; margin: 1cm; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #0f172a; background: white; padding: 20px; line-height: 1.4; }
+    .page-container { max-width: 800px; margin: 0 auto; border: 1px solid #f1f5f9; padding: 40px; }
+    
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .brand { display: flex; align-items: center; gap: 15px; }
+    .logo-circle { width: 60px; height: 60px; background: #000000; border-radius: 18px; display: flex; align-items: center; justify-content: center; color: white; font-size: 28px; font-weight: 900; }
+    .org-details h1 { font-size: 24px; font-weight: 900; letter-spacing: -0.5px; color: #0f172a; }
+    .org-details p { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: #64748b; }
+    
+    .doc-info { text-align: right; }
+    .doc-info h2 { font-size: 20px; font-weight: 900; color: #0f172a; text-transform: uppercase; }
+    .doc-info p { font-size: 10px; font-family: monospace; color: #94a3b8; }
+    
+    .divider { height: 4px; background: #0f172a; margin: 20px 0 30px 0; border: none; }
+    
+    .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-bottom: 30px; }
+    .meta-group { display: flex; flex-direction: column; gap: 15px; }
+    .meta-item { display: flex; flex-direction: column; }
+    .label { font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 1.2px; color: #94a3b8; margin-bottom: 4px; }
+    .value { font-size: 13px; font-weight: 800; color: #0f172a; }
+    .info-right { text-align: right; }
+    
+    table { width: 100%; border-collapse: separate; border-spacing: 0; margin-bottom: 40px; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; }
+    th { background: #f8fafc; padding: 12px 15px; font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; color: #64748b; border-bottom: 1px solid #e2e8f0; text-align: left; }
+    th:not(:last-child) { border-right: 1px solid #e2e8f0; }
+    td { padding: 15px; border-bottom: 1px solid #f1f5f9; font-size: 12px; color: #334155; }
+    td:not(:last-child) { border-right: 1px solid #f1f5f9; }
+    .row-no { width: 60px; color: #94a3b8; }
+    .weight-bold { font-weight: 800; color: #0f172a; }
+    .font-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+    tr:last-child td { border-bottom: none; }
+    
+    .signature-section { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 40px; padding: 0 40px; }
+    .sig-box { text-align: center; display: flex; flex-direction: column; align-items: center; }
+    .sig-label { font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 1.2px; color: #94a3b8; margin-bottom: 60px; }
+    .sig-line { width: 220px; height: 1.5px; background: #0f172a; margin-bottom: 8px; }
+    .sig-name { font-size: 11px; font-weight: 900; text-transform: uppercase; color: #0f172a; }
+    
+    .footer { margin-top: 60px; padding-top: 20px; border-top: 1px solid #f1f5f9; text-align: center; }
+    .footer p { font-size: 8px; color: #94a3b8; font-style: italic; font-family: ui-monospace, monospace; }
+    
+    @media print {
+      body { padding: 0; }
+      .page-container { border: none; padding: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page-container">
+    <div class="header">
+      <div class="brand">
+        <div class="logo-circle">L</div>
+        <div class="org-details">
+          <h1>LINTAS CSSD</h1>
+          <p>Digital Sterilization System</p>
+        </div>
+      </div>
+      <div class="doc-info">
+        <h2>Form Serah Terima</h2>
+        <p>REF: ${refCode}</p>
+      </div>
+    </div>
+    
+    <hr class="divider" />
+    
+    <div class="meta-grid">
+      <div class="meta-group">
+        <div class="meta-item">
+          <p class="label">Unit Pengirim</p>
+          <p class="value">INSTALASI CSSD</p>
+        </div>
+        <div class="meta-item">
+          <p class="label">Unit Tujuan</p>
+          <p class="value">${roomName}</p>
+        </div>
+      </div>
+      <div class="meta-group info-right">
+        <div class="meta-item">
+          <p class="label">Tanggal & Waktu</p>
+          <p class="value">${dateStr}</p>
+        </div>
+        <div class="meta-item">
+          <p class="label">Petugas CSSD (Operator)</p>
+          <p class="value">${operatorName}</p>
+        </div>
+      </div>
+    </div>
+    
+    <table>
+      <thead>
+        <tr>
+          <th class="row-no">No.</th>
+          <th>Nama Alat / Set</th>
+          <th>Barcode / ID</th>
+          <th style="text-align: right">Jumlah</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="row-no">1.</td>
+          <td class="weight-bold">${selectedTool.name}</td>
+          <td class="font-mono text-slate-500">${selectedTool.barcode}</td>
+          <td class="weight-bold" style="text-align: right">1 SET</td>
+        </tr>
+      </tbody>
+    </table>
+    
+    <div class="signature-section">
+      <div class="sig-box">
+        <p class="sig-label">Petugas Penyerah (CSSD)</p>
+        <div class="sig-line"></div>
+        <p class="sig-name">(${operatorName})</p>
+      </div>
+      <div class="sig-box">
+        <p class="sig-label">Petugas Penerima (Unit)</p>
+        <div class="sig-line"></div>
+        <p class="sig-name">(${selectedStaff || 'BATMAN'})</p>
+      </div>
+    </div>
+    
+    <div class="footer">
+      <p>Dokumen ini dihasilkan secara otomatis oleh sistem LINTAS CSSD pada ${isoStr} • Cetakan Sah Handover Form.</p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+                                    const printWindow = window.open('', '_blank', 'width=800,height=900');
+                                    if (printWindow) {
+                                        printWindow.document.write(htmlContent);
+                                        printWindow.document.close();
+                                        printWindow.focus();
+                                        setTimeout(() => {
+                                            printWindow.print();
+                                            printWindow.close();
+                                        }, 500);
+                                    }
+                                }}
+                            >
+                                <Printer size={18} />
+                                Cetak Form Sekarang
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

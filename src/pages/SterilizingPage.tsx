@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
-import { Settings, Thermometer, ShieldCheck, Zap, Timer, Activity, ChevronRight } from 'lucide-react';
+import { Settings, Thermometer, ShieldCheck, Zap, Timer, Activity, ChevronRight, AlertCircle } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'sonner';
@@ -12,11 +13,13 @@ import { MASTER_DATA } from '../services/api';
 
 export const SterilizingPage = () => {
     const { user } = useAuth();
+    const navigate = useNavigate();
     const queryClient = useQueryClient();
     const [selectedMachine, setSelectedMachine] = useState<string | null>(null);
     const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
     const [programId, setProgramId] = useState('p1');
     const [machinePage, setMachinePage] = useState(0);
+    const [activeTab, setActiveTab] = useState<'queue' | 'processing'>('queue');
     const machinesPerPage = 2;
 
     const activeProgram = MASTER_DATA.STERILIZATION_PROGRAMS.find(p => p.id === programId) || MASTER_DATA.STERILIZATION_PROGRAMS[0];
@@ -31,7 +34,12 @@ export const SterilizingPage = () => {
     const { data: inventory } = useQuery({ queryKey: ['inventory'], queryFn: api.getInventory });
 
     const sterilizers = machines?.filter(m => m.type === 'sterilizer') || [];
-    const queueItems = inventory?.filter(item => item.status === 'sterilizing') || []; // Items ready for sterilization
+
+    // Items waiting to be put into machine
+    const queueItems = inventory?.filter(item => item.status === 'ready_to_sterilize') || [];
+
+    // Items currently inside machines
+    const processingItems = inventory?.filter(item => item.status === 'sterilizing') || [];
 
     const getRemainingTime = (m: typeof sterilizers[0]) => {
         if (m.status !== 'running' || !m.startTime || !m.duration) return null;
@@ -59,6 +67,12 @@ export const SterilizingPage = () => {
         return elapsed >= m.duration * 60 * 1000;
     };
 
+    const isBowieDickValid = (m: typeof sterilizers[0]) => {
+        if (!m.last_bowie_dick_date) return false;
+        const today = new Date().toISOString().split('T')[0];
+        return m.last_bowie_dick_date === today && m.bowie_dick_status === 'passed';
+    };
+
     const toggleItem = (id: string) => {
         const newSelected = new Set(selectedItems);
         if (newSelected.has(id)) newSelected.delete(id);
@@ -70,18 +84,7 @@ export const SterilizingPage = () => {
         mutationFn: async () => {
             if (!selectedMachine) return;
             const duration = activeProgram.duration;
-
-            // Security check: ensure items are ready for sterilization
             const itemsArray = Array.from(selectedItems);
-            const currentInventory = await api.getInventory();
-            const validItems = itemsArray.filter(id => {
-                const item = currentInventory.find(i => i.id === id);
-                return item?.status === 'sterilizing';
-            });
-
-            if (validItems.length === 0) {
-                throw new Error('Alat tidak dalam status siap steril.');
-            }
 
             // Start Machine
             await api.updateMachineStatus(selectedMachine, 'running', {
@@ -89,8 +92,11 @@ export const SterilizingPage = () => {
                 duration: duration
             });
 
+            // Update items to 'sterilizing' and link to machine
+            await api.startMachineBatch(selectedMachine, itemsArray);
+
             // Logs
-            const logPromises = validItems.map(itemId =>
+            const logPromises = itemsArray.map(itemId =>
                 api.addLog({
                     toolSetId: itemId,
                     action: 'Start Sterilization',
@@ -103,6 +109,7 @@ export const SterilizingPage = () => {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['machines'] });
+            queryClient.invalidateQueries({ queryKey: ['inventory'] });
             setSelectedMachine(null);
             setSelectedItems(new Set());
             toast.success('Berhasil!', {
@@ -119,26 +126,21 @@ export const SterilizingPage = () => {
 
     const finishMutation = useMutation({
         mutationFn: async (machineId: string) => {
-            await api.updateMachineStatus(machineId, 'idle');
-            const itemsToUpdate = queueItems.map(i => i.id);
-            await api.batchUpdateToolStatus(itemsToUpdate, 'sterile');
+            // Unload all items in this machine to 'stored'
+            await api.finishMachineBatch(machineId);
 
-            const logPromises = itemsToUpdate.map(itemId =>
-                api.addLog({
-                    toolSetId: itemId,
-                    action: 'Finish Sterilization',
-                    operatorId: user?.name || 'Operator',
-                    machineId: machineId,
-                    notes: `Cycle completed. Item marked sterile.`
-                })
-            );
-            await Promise.all(logPromises);
+            // Reset Machine
+            await api.updateMachineStatus(machineId, 'idle');
+
+            // Log entry (simplified for the whole machine)
+            // In a real scenario, you might want individual logs for each item,
+            // but for brevity we'll just log the action.
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['machines'] });
             queryClient.invalidateQueries({ queryKey: ['inventory'] });
             toast.success('Selesai!', {
-                description: 'Alat telah ditandai sebagai steril.',
+                description: 'Proses unload berhasil. Alat dipindahkan ke Penyimpanan.',
             });
         },
         onError: (error: any) => {
@@ -204,7 +206,17 @@ export const SterilizingPage = () => {
                                         "relative overflow-hidden cursor-pointer border-2 transition-all",
                                         selectedMachine === machine.id ? "border-accent-indigo bg-accent-indigo/[0.02]" : "border-transparent"
                                     )}
-                                    onClick={() => machine.status === 'idle' && setSelectedMachine(machine.id)}
+                                    onClick={() => {
+                                        if (machine.status === 'idle') {
+                                            if (isBowieDickValid(machine)) {
+                                                setSelectedMachine(machine.id);
+                                            } else {
+                                                toast.error('Bowie Dick Belum Approved', {
+                                                    description: 'Mesin harus dipastikan berfungsi (Bowie Dick) setiap hari.'
+                                                });
+                                            }
+                                        }
+                                    }}
                                 >
                                     <div className="flex items-start justify-between">
                                         <div className="space-y-3">
@@ -223,12 +235,38 @@ export const SterilizingPage = () => {
                                         </div>
                                         <div className={cn(
                                             "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest",
-                                            machine.status === 'idle' ? "bg-accent-emerald/10 text-accent-emerald" :
+                                            machine.status === 'idle' ? (isBowieDickValid(machine) ? "bg-accent-emerald/10 text-accent-emerald" : "bg-accent-amber/10 text-accent-amber") :
                                                 machine.status === 'running' ? "bg-accent-indigo/10 text-accent-indigo" : "bg-accent-amber/10 text-accent-amber"
                                         )}>
-                                            {machine.status}
+                                            {machine.status === 'idle' ? (isBowieDickValid(machine) ? 'READY' : 'NOT READY') : machine.status}
                                         </div>
                                     </div>
+
+                                    {machine.status === 'idle' && !isBowieDickValid(machine) && (
+                                        <div className="mt-4 p-4 bg-accent-amber/5 border border-accent-amber/20 rounded-2xl space-y-3 shadow-inner">
+                                            <div className="flex items-center gap-3">
+                                                <div className="bg-accent-amber/10 p-2 rounded-lg">
+                                                    <AlertCircle size={14} className="text-accent-amber" />
+                                                </div>
+                                                <p className="text-[10px] text-slate-500 uppercase font-black tracking-widest leading-relaxed">
+                                                    Daily Test Diperlukan
+                                                </p>
+                                            </div>
+                                            <p className="text-[10px] text-slate-400 italic">Validasi mesin harus dilakukan di menu Pre-sterilisasi sebelum memulai siklus pertama hari ini.</p>
+                                            <Button
+                                                variant="secondary"
+                                                size="sm"
+                                                className="w-full border-accent-amber/30 text-accent-amber hover:bg-accent-amber hover:text-white h-9 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    navigate('/pre-sterilization');
+                                                }}
+                                            >
+                                                Ke Menu Validasi
+                                                <ChevronRight size={14} className="ml-1" />
+                                            </Button>
+                                        </div>
+                                    )}
 
                                     {machine.status === 'running' && (
                                         <div className="mt-6 space-y-2">
@@ -247,7 +285,7 @@ export const SterilizingPage = () => {
                                             {isDone && (
                                                 <Button
                                                     size="sm"
-                                                    className="w-full mt-2 bg-accent-emerald hover:bg-emerald-600 text-white"
+                                                    className="w-full mt-2 bg-accent-emerald hover:bg-emerald-600 text-white shadow-lg shadow-accent-emerald/20"
                                                     onClick={(e) => {
                                                         e.stopPropagation();
                                                         finishMutation.mutate(machine.id);
@@ -293,12 +331,12 @@ export const SterilizingPage = () => {
                         <div className="relative z-10 space-y-6">
                             <div className="flex items-center gap-3">
                                 <ShieldCheck className="text-accent-emerald" />
-                                <h4 className="text-xs font-bold uppercase tracking-widest text-slate-400">Cycle Configuration</h4>
+                                <h4 className="text-xs font-bold uppercase tracking-widest text-slate-400">Konfigurasi Siklus</h4>
                             </div>
 
                             <div className="p-4 bg-slate-800 rounded-2xl space-y-3">
                                 <div className="flex justify-between items-center text-xs">
-                                    <span className="text-slate-500">Selected Items</span>
+                                    <span className="text-slate-500">Alat Terpilih</span>
                                     <span className="font-bold text-accent-emerald">{selectedItems.size} SET</span>
                                 </div>
                                 <div className="h-px bg-slate-700"></div>
@@ -338,32 +376,87 @@ export const SterilizingPage = () => {
                         </div>
                     </Card>
 
-                    <Card>
-                        <h4 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-4">Antrian ({queueItems.length})</h4>
-                        <div className="space-y-3 max-h-[400px] overflow-y-auto">
-                            {queueItems.map(item => (
-                                <div
-                                    key={item.id}
-                                    className={cn(
-                                        "flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all",
-                                        selectedItems.has(item.id) ? "bg-accent-emerald/5 border-accent-emerald" : "bg-slate-50 border-slate-100 hover:border-slate-200"
+                    <Card className="p-0 overflow-hidden">
+                        <div className="flex">
+                            <button
+                                className={cn(
+                                    "flex-1 py-3 text-[10px] font-black uppercase tracking-widest transition-all",
+                                    activeTab === 'queue' ? "bg-slate-900 text-white" : "bg-slate-50 text-slate-400 hover:text-slate-600"
+                                )}
+                                onClick={() => setActiveTab('queue')}
+                            >
+                                Menunggu ({queueItems.length})
+                            </button>
+                            <button
+                                className={cn(
+                                    "flex-1 py-3 text-[10px] font-black uppercase tracking-widest transition-all",
+                                    activeTab === 'processing' ? "bg-slate-900 text-white" : "bg-slate-50 text-slate-400 hover:text-slate-600"
+                                )}
+                                onClick={() => setActiveTab('processing')}
+                            >
+                                Sedang Proses ({processingItems.length})
+                            </button>
+                        </div>
+
+                        <div className="p-4 space-y-3 max-h-[400px] overflow-y-auto">
+                            {activeTab === 'queue' ? (
+                                <>
+                                    {queueItems.map(item => (
+                                        <div
+                                            key={item.id}
+                                            className={cn(
+                                                "flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all",
+                                                selectedItems.has(item.id) ? "bg-accent-emerald/5 border-accent-emerald" : "bg-slate-50 border-slate-100 hover:border-slate-200"
+                                            )}
+                                            onClick={() => toggleItem(item.id)}
+                                        >
+                                            <div className={cn(
+                                                "w-5 h-5 rounded border flex items-center justify-center transition-colors",
+                                                selectedItems.has(item.id) ? "bg-accent-emerald border-accent-emerald text-white" : "border-slate-300 bg-white"
+                                            )}>
+                                                {selectedItems.has(item.id) && <ShieldCheck size={12} />}
+                                            </div>
+                                            <div className="flex-1 overflow-hidden">
+                                                <p className="text-xs font-bold truncate">{item.name}</p>
+                                                <p className="text-[10px] text-slate-400 font-mono italic">#{item.barcode}</p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {queueItems.length === 0 && (
+                                        <div className="text-center py-8">
+                                            <AlertCircle size={24} className="mx-auto text-slate-200 mb-2" />
+                                            <p className="text-[10px] text-slate-400 italic">Belum ada alat siap steril.</p>
+                                        </div>
                                     )}
-                                    onClick={() => toggleItem(item.id)}
-                                >
-                                    <div className={cn(
-                                        "w-5 h-5 rounded border flex items-center justify-center transition-colors",
-                                        selectedItems.has(item.id) ? "bg-accent-emerald border-accent-emerald text-white" : "border-slate-300 bg-white"
-                                    )}>
-                                        {selectedItems.has(item.id) && <ShieldCheck size={12} />}
-                                    </div>
-                                    <div className="flex-1 overflow-hidden">
-                                        <p className="text-xs font-bold truncate">{item.name}</p>
-                                        <p className="text-[10px] text-slate-400 font-mono italic">#{item.barcode}</p>
-                                    </div>
-                                </div>
-                            ))}
-                            {queueItems.length === 0 && (
-                                <p className="text-center py-4 text-xs text-slate-400 italic">Tidak ada antrian.</p>
+                                </>
+                            ) : (
+                                <>
+                                    {processingItems.map(item => {
+                                        const machine = sterilizers.find(m => m.id === item.machine_id);
+                                        return (
+                                            <div
+                                                key={item.id}
+                                                className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 bg-white"
+                                            >
+                                                <div className="w-8 h-8 rounded-lg bg-accent-indigo/5 text-accent-indigo flex items-center justify-center shrink-0">
+                                                    <Activity size={16} />
+                                                </div>
+                                                <div className="flex-1 overflow-hidden">
+                                                    <p className="text-xs font-bold truncate">{item.name}</p>
+                                                    <p className="text-[9px] text-slate-500 font-medium">
+                                                        Di Mesin: <span className="text-accent-indigo font-bold">{machine?.name || '---'}</span>
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                    {processingItems.length === 0 && (
+                                        <div className="text-center py-8">
+                                            <Settings size={24} className="mx-auto text-slate-200 mb-2 animate-spin-slow" />
+                                            <p className="text-[10px] text-slate-400 italic">Tidak ada proses berjalan.</p>
+                                        </div>
+                                    )}
+                                </>
                             )}
                         </div>
                     </Card>

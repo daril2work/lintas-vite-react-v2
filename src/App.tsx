@@ -5,6 +5,8 @@ import { IntakePage } from './pages/IntakePage';
 import { WashingPage } from './pages/WashingPage';
 import { PackingPage } from './pages/PackingPage';
 import { SterilizingPage } from './pages/SterilizingPage';
+import { StoragePage } from './pages/StoragePage';
+import { PreSterilizationPage } from './pages/PreSterilizationPage';
 import { DistributionPage } from './pages/DistributionPage';
 import { MasterDataPage } from './pages/MasterDataPage';
 import { ReportsPage } from './pages/ReportsPage';
@@ -48,6 +50,8 @@ function App() {
               <Route path="/washing" element={<ProtectedRoute allowedRoles={['admin', 'operator_cssd']}><WashingPage /></ProtectedRoute>} />
               <Route path="/packing" element={<ProtectedRoute allowedRoles={['admin', 'operator_cssd']}><PackingPage /></ProtectedRoute>} />
               <Route path="/sterilizing" element={<ProtectedRoute allowedRoles={['admin', 'operator_cssd']}><SterilizingPage /></ProtectedRoute>} />
+              <Route path="/storage" element={<ProtectedRoute allowedRoles={['admin', 'operator_cssd']}><StoragePage /></ProtectedRoute>} />
+              <Route path="/pre-sterilization" element={<ProtectedRoute allowedRoles={['admin', 'operator_cssd']}><PreSterilizationPage /></ProtectedRoute>} />
               <Route path="/distribution" element={<ProtectedRoute allowedRoles={['admin', 'operator_cssd']}><DistributionPage /></ProtectedRoute>} />
               <Route path="/ward/send" element={<ProtectedRoute allowedRoles={['admin', 'operator_ruangan']}><WardSendPage /></ProtectedRoute>} />
               <Route path="/ward/receive" element={<ProtectedRoute allowedRoles={['admin', 'operator_ruangan']}><WardReceivePage /></ProtectedRoute>} />

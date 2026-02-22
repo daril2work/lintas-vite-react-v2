@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import type { Staff, Machine, ToolSet, WorkflowLog, ToolRequest, ImportantMessage } from '../types';
+import type { Staff, Machine, ToolSet, WorkflowLog, ToolRequest, ImportantMessage, Room, BowieDickLog } from '../types';
 
 export const MASTER_DATA = {
     DEPARTMENTS: ['CSSD', 'IGD', 'ICU', 'OK (Bedah)', 'Poli Umum', 'Poli Gigi', 'Logistik'],
@@ -12,9 +12,9 @@ export const MASTER_DATA = {
         { id: 'delicate', name: 'Delicate', duration: 30, temp: 40 },
     ],
     STERILIZATION_PROGRAMS: [
-        { id: 'p1', name: 'Standard 134°C', duration: 45, temp: 134, pressure: 2.1 },
-        { id: 'p2', name: 'Delicate 121°C', duration: 60, temp: 121, pressure: 1.1 },
-        { id: 'p3', name: 'Flash Cycle', duration: 20, temp: 134, pressure: 2.2 },
+        { id: 'p1', name: 'Standard 134°C', duration: 45, temp: 134, pressure: 2.1, expire_days: 30 },
+        { id: 'p2', name: 'Delicate 121°C', duration: 60, temp: 121, pressure: 1.1, expire_days: 14 },
+        { id: 'p3', name: 'Flash Cycle', duration: 20, temp: 134, pressure: 2.2, expire_days: 1 },
     ]
 };
 
@@ -40,7 +40,7 @@ export const api = {
             role: staff.role,
             department: staff.department,
             employee_id: staff.employeeId,
-            email: staff.username, // Map username to email
+            email: staff.username,
             password: staff.password
         }]);
         if (error) throw error;
@@ -59,7 +59,6 @@ export const api = {
     },
 
     deleteStaff: async (id: string): Promise<void> => {
-        // Deleting from profiles might be restricted or cascade from auth.users
         const { error } = await supabase.from('profiles').delete().eq('id', id);
         if (error) throw error;
     },
@@ -102,6 +101,8 @@ export const api = {
             status: m.status,
             lastService: m.last_service,
             nextService: m.next_service,
+            last_bowie_dick_date: m.last_bowie_dick_date,
+            bowie_dick_status: m.bowie_dick_status,
             startTime: m.start_time,
             duration: m.duration
         }));
@@ -116,7 +117,6 @@ export const api = {
         const { error } = await supabase.from('machines').update({
             name: updates.name,
             type: updates.type,
-            // Map camelCase to snake_case if needed, but schema uses minimal mapping
         }).eq('id', id);
         if (error) throw error;
     },
@@ -131,7 +131,6 @@ export const api = {
         if (meta?.startTime) updateData.start_time = meta.startTime;
         if (meta?.duration) updateData.duration = meta.duration;
 
-        // If status is idle, clear the timer data
         if (status === 'idle') {
             updateData.start_time = null;
             updateData.duration = null;
@@ -141,12 +140,71 @@ export const api = {
         if (error) throw error;
     },
 
+    approveBowieDick: async (id: string): Promise<void> => {
+        const { error } = await supabase.from('machines').update({
+            last_bowie_dick_date: new Date().toISOString().split('T')[0],
+            bowie_dick_status: 'passed',
+            status: 'idle'
+        }).eq('id', id);
+        if (error) throw error;
+    },
+
     batchUpdateToolStatus: async (ids: string[], status: ToolSet['status']): Promise<void> => {
         const { error } = await supabase.from('inventory').update({ status }).in('id', ids);
         if (error) throw error;
     },
 
-    // Logs
+    // Bowie Dick Logs
+    createBowieDickLog: async (log: Omit<BowieDickLog, 'id' | 'timestamp'>): Promise<BowieDickLog> => {
+        const { data, error } = await supabase
+            .from('bowie_dick_logs')
+            .insert([{
+                machine_id: log.machineId,
+                temperature: log.temperature,
+                pressure: log.pressure,
+                holding_time: log.holding_time,
+                result: log.result,
+                operator_name: log.operator_name,
+                notes: log.notes
+            }])
+            .select('*')
+            .single();
+
+        if (error) throw error;
+        return {
+            id: data.id,
+            machineId: data.machine_id,
+            temperature: Number(data.temperature),
+            pressure: Number(data.pressure),
+            holding_time: data.holding_time,
+            result: data.result,
+            operator_name: data.operator_name,
+            notes: data.notes,
+            timestamp: data.timestamp
+        };
+    },
+
+    getBowieDickLogs: async (): Promise<BowieDickLog[]> => {
+        const { data, error } = await supabase
+            .from('bowie_dick_logs')
+            .select('*')
+            .order('timestamp', { ascending: false });
+
+        if (error) throw error;
+        return (data || []).map(d => ({
+            id: d.id,
+            machineId: d.machine_id,
+            temperature: Number(d.temperature),
+            pressure: Number(d.pressure),
+            holding_time: d.holding_time,
+            result: d.result,
+            operator_name: d.operator_name,
+            notes: d.notes,
+            timestamp: d.timestamp
+        }));
+    },
+
+    // Workflow Logs
     addLog: async (log: Omit<WorkflowLog, 'id' | 'timestamp'>): Promise<void> => {
         const { error } = await supabase.from('workflow_logs').insert([{
             tool_set_id: log.toolSetId,
@@ -181,7 +239,7 @@ export const api = {
         return data.map((r: any) => ({
             id: r.id,
             ward: r.ward,
-            items: r.items, // JSONB
+            items: r.items,
             priority: r.priority,
             status: r.status,
             patientRm: r.patient_rm,
@@ -190,35 +248,6 @@ export const api = {
             timestamp: r.timestamp,
             notes: r.notes
         }));
-    },
-
-    getEfficiency: async (): Promise<number> => {
-        try {
-            // Get today's logs
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-
-            const { data: logs, error } = await supabase
-                .from('workflow_logs')
-                .select('*')
-                .gte('timestamp', today.toISOString());
-
-            if (error) throw error;
-
-            // Count completed sterilization and washing cycles
-            const completedCycles = logs?.filter(log =>
-                log.action.includes('Finish') || log.action.includes('Selesai')
-            ).length || 0;
-
-            // Target: 50 cycles per day (adjustable)
-            const dailyTarget = 50;
-            const efficiency = Math.min((completedCycles / dailyTarget) * 100, 100);
-
-            return Math.round(efficiency * 10) / 10; // Round to 1 decimal
-        } catch (error) {
-            console.error('Efficiency calculation error:', error);
-            return 0;
-        }
     },
 
     createRequest: async (request: Omit<ToolRequest, 'id' | 'timestamp' | 'status'>): Promise<void> => {
@@ -240,14 +269,36 @@ export const api = {
         if (error) throw error;
     },
 
-    // Master Data Getters (Fase 1)
-    getDepartments: async (): Promise<string[]> => {
-        return MASTER_DATA.DEPARTMENTS;
+    // Analytics
+    getEfficiency: async (): Promise<number> => {
+        try {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            const { data: logs, error } = await supabase
+                .from('workflow_logs')
+                .select('*')
+                .gte('timestamp', today.toISOString());
+
+            if (error) throw error;
+
+            const completedCycles = logs?.filter(log =>
+                log.action.includes('Finish') || log.action.includes('Selesai')
+            ).length || 0;
+
+            const dailyTarget = 50;
+            const efficiency = Math.min((completedCycles / dailyTarget) * 100, 100);
+
+            return Math.round(efficiency * 10) / 10;
+        } catch (error) {
+            console.error('Efficiency calculation error:', error);
+            return 0;
+        }
     },
 
-    getCategories: async (): Promise<string[]> => {
-        return MASTER_DATA.CATEGORIES;
-    },
+    // Master Data Helpers
+    getDepartments: async (): Promise<string[]> => MASTER_DATA.DEPARTMENTS,
+    getCategories: async (): Promise<string[]> => MASTER_DATA.CATEGORIES,
 
     // App Config
     getAppConfigs: async (): Promise<Record<string, string>> => {
@@ -284,5 +335,91 @@ export const api = {
             createdAt: m.created_at,
             expiresAt: m.expires_at
         }));
+    },
+
+    // Rooms
+    getRooms: async (): Promise<Room[]> => {
+        const { data, error } = await supabase
+            .from('rooms')
+            .select('*, pic:profiles(name)')
+            .order('name');
+
+        if (error) throw error;
+
+        return (data || []).map((r: any) => ({
+            id: r.id,
+            name: r.name,
+            pic_id: r.pic_id,
+            pic_name: r.pic?.name,
+            createdAt: r.created_at
+        }));
+    },
+
+    createRoom: async (room: Omit<Room, 'id' | 'createdAt'>): Promise<void> => {
+        const { error } = await supabase.from('rooms').insert([{
+            name: room.name,
+            pic_id: room.pic_id
+        }]);
+        if (error) throw error;
+    },
+
+    updateRoom: async (id: string, updates: Partial<Omit<Room, 'id' | 'createdAt'>>): Promise<void> => {
+        const { error } = await supabase.from('rooms').update({
+            name: updates.name,
+            pic_id: updates.pic_id
+        }).eq('id', id);
+        if (error) throw error;
+    },
+
+    deleteRoom: async (id: string): Promise<void> => {
+        const { error } = await supabase.from('rooms').delete().eq('id', id);
+        if (error) throw error;
+    },
+
+    // Workflow Actions
+    receiveTool: async (id: string, roomId: string): Promise<void> => {
+        const { error } = await supabase.from('inventory')
+            .update({ status: 'in_use', room_id: roomId })
+            .eq('id', id);
+        if (error) throw error;
+    },
+
+    sendDirty: async (id: string): Promise<void> => {
+        const { error } = await supabase.from('inventory')
+            .update({ status: 'dirty', room_id: null })
+            .eq('id', id);
+        if (error) throw error;
+    },
+
+    updatePackingData: async (id: string, expireDate: string, method: string): Promise<void> => {
+        const { error } = await supabase.from('inventory')
+            .update({
+                status: 'ready_to_sterilize',
+                expire_date: expireDate,
+                sterilization_method: method
+            })
+            .eq('id', id);
+        if (error) throw error;
+    },
+
+    startMachineBatch: async (machineId: string, itemIds: string[]): Promise<void> => {
+        const { error } = await supabase.from('inventory')
+            .update({
+                status: 'sterilizing',
+                machine_id: machineId
+            })
+            .in('id', itemIds);
+        if (error) throw error;
+    },
+
+    finishMachineBatch: async (machineId: string): Promise<void> => {
+        const { error } = await supabase.from('inventory')
+            .update({
+                status: 'stored',
+                machine_id: null
+            })
+            .eq('machine_id', machineId)
+            .eq('status', 'sterilizing');
+        if (error) throw error;
     }
 };

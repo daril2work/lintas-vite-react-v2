@@ -5,25 +5,26 @@ import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Box, ClipboardCheck, CheckCircle2, Search, AlertCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { toast } from 'sonner';
 
 export const WardReceivePage = () => {
     const { user } = useAuth();
     const queryClient = useQueryClient();
 
-    const { data: departments = [] } = useQuery({
-        queryKey: ['departments'],
-        queryFn: api.getDepartments,
+    const { data: rooms = [] } = useQuery({
+        queryKey: ['rooms'],
+        queryFn: api.getRooms,
     });
 
-    const [selectedRoom, setSelectedRoom] = useState('');
+    const [selectedRoomId, setSelectedRoomId] = useState('');
     const [search, setSearch] = useState('');
 
-    // Set initial department
+    // Set initial room
     useEffect(() => {
-        if (departments.length > 0 && !selectedRoom) {
-            setSelectedRoom(departments[0]);
+        if (rooms.length > 0 && !selectedRoomId) {
+            setSelectedRoomId(rooms[0].id);
         }
-    }, [departments, selectedRoom]);
+    }, [rooms, selectedRoomId]);
 
     const { data: inventory, isLoading } = useQuery({
         queryKey: ['inventory'],
@@ -32,16 +33,22 @@ export const WardReceivePage = () => {
 
     const receiveMutation = useMutation({
         mutationFn: async (id: string) => {
+            const room = rooms.find(r => r.id === selectedRoomId);
+            await api.receiveTool(id, selectedRoomId);
             await api.addLog({
                 toolSetId: id,
-                action: `Diterima di ${selectedRoom}`,
+                action: `Diterima di ${room?.name || 'Unit'}`,
                 operatorId: user?.name || 'RoomUser',
                 notes: 'Alat diterima dalam kondisi steril dan kemasan utuh.'
             });
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['inventory'] });
+            toast.success('Alat berhasil diterima dan siap digunakan');
         },
+        onError: () => {
+            toast.error('Gagal memproses penerimaan alat');
+        }
     });
 
     const pendingArrivals = inventory?.filter(item =>
@@ -59,11 +66,11 @@ export const WardReceivePage = () => {
                 <div className="bg-white px-6 py-3 rounded-2xl shadow-soft border border-slate-100 flex items-center gap-4">
                     <span className="text-[10px] uppercase font-black text-slate-400 tracking-widest">Ruangan:</span>
                     <select
-                        value={selectedRoom}
-                        onChange={(e) => setSelectedRoom(e.target.value)}
+                        value={selectedRoomId}
+                        onChange={(e) => setSelectedRoomId(e.target.value)}
                         className="text-sm font-bold text-accent-emerald bg-transparent focus:outline-none"
                     >
-                        {departments.map(d => <option key={d} value={d}>{d}</option>)}
+                        {rooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                     </select>
                 </div>
             </div>

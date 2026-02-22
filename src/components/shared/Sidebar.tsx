@@ -37,10 +37,12 @@ const MENU_SECTIONS = [
         header: 'AKTIVITAS CSSD',
         allowedRoles: ['admin', 'operator_cssd'],
         items: [
+            { icon: ClipboardCheck, label: 'Pre-sterilisasi', path: '/pre-sterilization' },
             { icon: PackageSearch, label: 'Penerimaan', path: '/intake' },
             { icon: Waves, label: 'Pencucian', path: '/washing' },
             { icon: Box, label: 'Pengepakan', path: '/packing' },
             { icon: Settings, label: 'Sterilisasi', path: '/sterilizing' },
+            { icon: ClipboardCheck, label: 'Penyimpanan', path: '/storage' },
             { icon: Truck, label: 'Distribusi', path: '/distribution' },
         ]
     },

@@ -8,6 +8,7 @@ import { Box, Send, PackageSearch, Trash2, Camera, AlertTriangle } from 'lucide-
 import { cn } from '../utils/cn';
 import type { ToolSet } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { toast } from 'sonner';
 
 interface SendBasketItem extends ToolSet {
     condition: 'good' | 'damaged';
@@ -19,21 +20,21 @@ export const WardSendPage = () => {
     const { user } = useAuth();
     const queryClient = useQueryClient();
 
-    const { data: departments = [] } = useQuery({
-        queryKey: ['departments'],
-        queryFn: api.getDepartments,
+    const { data: rooms = [] } = useQuery({
+        queryKey: ['rooms'],
+        queryFn: api.getRooms,
     });
 
-    const [selectedOrigin, setSelectedOrigin] = useState('');
+    const [selectedRoomId, setSelectedRoomId] = useState('');
     const [search, setSearch] = useState('');
     const [basket, setBasket] = useState<SendBasketItem[]>([]);
 
-    // Set initial department
+    // Set initial room
     useEffect(() => {
-        if (departments.length > 0 && !selectedOrigin) {
-            setSelectedOrigin(departments[0]);
+        if (rooms.length > 0 && !selectedRoomId) {
+            setSelectedRoomId(rooms[0].id);
         }
-    }, [departments, selectedOrigin]);
+    }, [rooms, selectedRoomId]);
 
     const { data: inventory, isLoading } = useQuery({
         queryKey: ['inventory'],
@@ -42,12 +43,12 @@ export const WardSendPage = () => {
 
     const sendMutation = useMutation({
         mutationFn: async (items: SendBasketItem[]) => {
+            const room = rooms.find(r => r.id === selectedRoomId);
             for (const item of items) {
-                // In a real app, this might just mark it as "sent" or "pending_intake"
-                // For now, we simulate the room user initiation
+                await api.sendDirty(item.id);
                 await api.addLog({
                     toolSetId: item.id,
-                    action: `Dikirim dari ${selectedOrigin} ke CSSD`,
+                    action: `Dikirim dari ${room?.name || 'Unit'} ke CSSD`,
                     operatorId: user?.name || 'RoomUser',
                     notes: item.condition === 'damaged' ? 'Kondisi rusak saat dikirim.' : undefined,
                     photo: item.photoUrl
@@ -57,13 +58,17 @@ export const WardSendPage = () => {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['inventory'] });
             setBasket([]);
-            alert(`Berhasil mengirim ${basket.length} alat ke CSSD.`);
+            toast.success('Alat berhasil dikirim ke CSSD');
         },
+        onError: () => {
+            toast.error('Gagal mengirim alat ke CSSD');
+        }
     });
 
     const availableItems = inventory?.filter(item =>
         (item.name.toLowerCase().includes(search.toLowerCase()) || item.barcode.includes(search)) &&
-        (item.status === 'distributed' || item.status === 'sterile') &&
+        item.status === 'in_use' &&
+        item.room_id === selectedRoomId &&
         !basket.find(v => v.id === item.id)
     ) || [];
 
@@ -92,11 +97,11 @@ export const WardSendPage = () => {
                 <div className="bg-white px-6 py-3 rounded-2xl shadow-soft border border-slate-100 flex items-center gap-4">
                     <span className="text-[10px] uppercase font-black text-slate-400 tracking-widest">Ruangan Anda:</span>
                     <select
-                        value={selectedOrigin}
-                        onChange={(e) => setSelectedOrigin(e.target.value)}
+                        value={selectedRoomId}
+                        onChange={(e) => setSelectedRoomId(e.target.value)}
                         className="text-sm font-bold text-accent-indigo bg-transparent focus:outline-none"
                     >
-                        {departments.map(d => <option key={d} value={d}>{d}</option>)}
+                        {rooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                     </select>
                 </div>
             </div>

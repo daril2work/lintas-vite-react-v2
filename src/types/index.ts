@@ -15,6 +15,8 @@ export interface Machine {
     status: 'idle' | 'running' | 'maintenance' | 'error';
     lastService?: string;
     nextService?: string;
+    last_bowie_dick_date?: string;
+    bowie_dick_status?: 'passed' | 'failed' | 'pending';
     startTime?: string;
     duration?: number;
 }
@@ -25,7 +27,12 @@ export interface ToolSet {
     barcode: string;
     category: string;
     lastSterilized?: string;
-    status: 'dirty' | 'washing' | 'packing' | 'sterilizing' | 'sterile' | 'distributed';
+    status: 'dirty' | 'washing' | 'packing' | 'ready_to_sterilize' | 'sterilizing' | 'stored' | 'sterile' | 'distributed' | 'in_use';
+    room_id?: string;
+    machine_id?: string;
+    expire_date?: string;
+    sterilization_method?: string;
+    default_sterilization_method?: string;
 }
 
 export interface WorkflowLog {
@@ -61,4 +68,24 @@ export interface ImportantMessage {
     isActive: boolean;
     createdAt: string;
     expiresAt?: string;
+}
+
+export interface Room {
+    id: string;
+    name: string;
+    pic_id: string;
+    pic_name?: string;
+    createdAt?: string;
+}
+
+export interface BowieDickLog {
+    id: string;
+    machineId: string;
+    temperature: number;
+    pressure: number;
+    holding_time: number;
+    result: string;
+    operator_name: string;
+    notes?: string;
+    timestamp: string;
 }
