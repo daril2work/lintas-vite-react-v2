@@ -28,7 +28,7 @@ export const MasterDataPage = () => {
         // Machine fields
         type: MASTER_DATA.MACHINE_TYPES[0],
         // Room fields
-        pic_id: ''
+        picId: ''
     });
 
     // Edit & delete states
@@ -279,7 +279,7 @@ export const MasterDataPage = () => {
             employeeId: '', department: MASTER_DATA.DEPARTMENTS[0], role: MASTER_DATA.ROLES[0],
             username: '', password: '',
             type: MASTER_DATA.MACHINE_TYPES[0],
-            pic_id: '',
+            picId: '',
             default_sterilization_method: MASTER_DATA.STERILIZATION_PROGRAMS[0].name
         });
         setEditingItem(null);
@@ -373,12 +373,12 @@ export const MasterDataPage = () => {
             if (editingItem) {
                 updateRoomMutation.mutate({
                     id: editingItem.id,
-                    data: { name: formData.name, pic_id: formData.pic_id }
+                    data: { name: formData.name, picId: formData.picId }
                 });
             } else {
                 createRoomMutation.mutate({
                     name: formData.name,
-                    pic_id: formData.pic_id
+                    picId: formData.picId
                 });
             }
         }
@@ -411,7 +411,7 @@ export const MasterDataPage = () => {
     const filteredRooms = (rooms || []).filter(r => {
         if (!r) return false;
         const name = String(r.name || '').toLowerCase();
-        const pic = String(r.pic_name || '').toLowerCase();
+        const pic = String(r.picName || '').toLowerCase();
         return name.includes(lowerQuery) || pic.includes(lowerQuery);
     });
 
@@ -555,7 +555,7 @@ export const MasterDataPage = () => {
                                                     username: item.username || '',
                                                     password: item.password || '',
                                                     type: 'washer',
-                                                    pic_id: '',
+                                                    picId: '',
                                                     default_sterilization_method: MASTER_DATA.STERILIZATION_PROGRAMS[0].name
                                                 });
                                                 setIsModalOpen(true);
@@ -672,7 +672,7 @@ export const MasterDataPage = () => {
                                                                                     username: '',
                                                                                     password: '',
                                                                                     type: 'washer',
-                                                                                    pic_id: '',
+                                                                                    picId: '',
                                                                                     default_sterilization_method: item.default_sterilization_method || MASTER_DATA.STERILIZATION_PROGRAMS[0].name
                                                                                 });
                                                                                 setIsModalOpen(true);
@@ -701,7 +701,7 @@ export const MasterDataPage = () => {
                                                     </table>
                                                 </div>
                                             </td>
-                                        </tr>
+                                        </tr >
                                     )}
                                 </>
                             ))}
@@ -719,7 +719,9 @@ export const MasterDataPage = () => {
                                             <span className="text-xs font-bold text-slate-700 capitalize">{item.status}</span>
                                         </div>
                                     </td>
-                                    <td className="px-8 py-5 text-sm text-slate-500">20 Jan 2026</td>
+                                    <td className="px-8 py-5 text-sm text-slate-500">
+                                        {item.lastService ? new Date(item.lastService).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
+                                    </td>
                                     <td className="px-8 py-5 text-right flex justify-end gap-2">
                                         <button
                                             onClick={() => {
@@ -735,7 +737,7 @@ export const MasterDataPage = () => {
                                                     username: '',
                                                     password: '',
                                                     type: item.type as any,
-                                                    pic_id: '',
+                                                    picId: '',
                                                     default_sterilization_method: (item as any).default_sterilization_method || MASTER_DATA.STERILIZATION_PROGRAMS[0].name
                                                 });
                                                 setIsModalOpen(true);
@@ -765,10 +767,10 @@ export const MasterDataPage = () => {
                                     <td className="px-8 py-5">
                                         <div className="flex items-center gap-3">
                                             <div className="w-8 h-8 rounded-full bg-accent-emerald/10 text-accent-emerald flex items-center justify-center font-bold text-xs uppercase">
-                                                {item.pic_name?.charAt(0) || '?'}
+                                                {item.picName?.charAt(0) || '?'}
                                             </div>
                                             <div>
-                                                <p className="font-bold text-slate-900">{item.pic_name || 'No PIC'}</p>
+                                                <p className="font-bold text-slate-900">{item.picName || 'No PIC'}</p>
                                                 <p className="text-[10px] text-slate-400 uppercase font-bold tracking-widest">Penanggung Jawab</p>
                                             </div>
                                         </div>
@@ -791,7 +793,7 @@ export const MasterDataPage = () => {
                                                     username: '',
                                                     password: '',
                                                     type: 'washer',
-                                                    pic_id: item.pic_id,
+                                                    picId: item.picId,
                                                     default_sterilization_method: (item as any).default_sterilization_method || MASTER_DATA.STERILIZATION_PROGRAMS[0].name
                                                 });
                                                 setIsModalOpen(true);
@@ -817,363 +819,369 @@ export const MasterDataPage = () => {
                             ))}
                         </tbody>
                     </table>
-                </div>
+                </div >
 
                 {/* Pagination Controls */}
-                {(() => {
-                    const dataSize = activeTab === 'staff' ? filteredStaff.length :
-                        activeTab === 'inventory' ? filteredInventoryGroups.length :
-                            activeTab === 'machines' ? filteredMachines.length :
-                                filteredRooms.length;
-                    const totalPages = Math.ceil((dataSize || 0) / itemsPerPage);
+                {
+                    (() => {
+                        const dataSize = activeTab === 'staff' ? filteredStaff.length :
+                            activeTab === 'inventory' ? filteredInventoryGroups.length :
+                                activeTab === 'machines' ? filteredMachines.length :
+                                    filteredRooms.length;
+                        const totalPages = Math.ceil((dataSize || 0) / itemsPerPage);
 
-                    if (totalPages <= 1) return null;
+                        if (totalPages <= 1) return null;
 
-                    return (
-                        <div className="px-8 py-4 bg-slate-50/30 border-t border-slate-50 flex items-center justify-between">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                                Page {currentPage + 1} of {totalPages} ({dataSize} total)
-                            </p>
-                            <div className="flex items-center gap-2">
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-8 w-8 p-0 rounded-lg text-slate-400 hover:text-slate-900"
-                                    onClick={() => setCurrentPage(p => Math.max(0, p - 1))}
-                                    disabled={currentPage === 0}
-                                >
-                                    <ChevronRight size={16} className="rotate-180" />
-                                </Button>
-                                <div className="flex items-center gap-1">
-                                    {[...Array(totalPages)].map((_, i) => {
-                                        // Simple page numbering: show first 5, current-1, current, current+1, and last
-                                        if (totalPages > 7) {
-                                            if (i !== 0 && i !== totalPages - 1 && Math.abs(i - currentPage) > 1) {
-                                                if (i === 1 || i === totalPages - 2) return <span key={i} className="text-slate-300">...</span>;
-                                                return null;
+                        return (
+                            <div className="px-8 py-4 bg-slate-50/30 border-t border-slate-50 flex items-center justify-between">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                                    Page {currentPage + 1} of {totalPages} ({dataSize} total)
+                                </p>
+                                <div className="flex items-center gap-2">
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-8 w-8 p-0 rounded-lg text-slate-400 hover:text-slate-900"
+                                        onClick={() => setCurrentPage(p => Math.max(0, p - 1))}
+                                        disabled={currentPage === 0}
+                                    >
+                                        <ChevronRight size={16} className="rotate-180" />
+                                    </Button>
+                                    <div className="flex items-center gap-1">
+                                        {[...Array(totalPages)].map((_, i) => {
+                                            // Simple page numbering: show first 5, current-1, current, current+1, and last
+                                            if (totalPages > 7) {
+                                                if (i !== 0 && i !== totalPages - 1 && Math.abs(i - currentPage) > 1) {
+                                                    if (i === 1 || i === totalPages - 2) return <span key={i} className="text-slate-300">...</span>;
+                                                    return null;
+                                                }
                                             }
-                                        }
-                                        return (
-                                            <button
-                                                key={i}
-                                                onClick={() => setCurrentPage(i)}
-                                                className={cn(
-                                                    "w-8 h-8 rounded-lg text-[10px] font-black transition-all",
-                                                    currentPage === i ? "bg-accent-indigo text-white shadow-md shadow-accent-indigo/20" : "text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
-                                                )}
-                                            >
-                                                {i + 1}
-                                            </button>
-                                        );
-                                    })}
+                                            return (
+                                                <button
+                                                    key={i}
+                                                    onClick={() => setCurrentPage(i)}
+                                                    className={cn(
+                                                        "w-8 h-8 rounded-lg text-[10px] font-black transition-all",
+                                                        currentPage === i ? "bg-accent-indigo text-white shadow-md shadow-accent-indigo/20" : "text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+                                                    )}
+                                                >
+                                                    {i + 1}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-8 w-8 p-0 rounded-lg text-slate-400 hover:text-slate-900"
+                                        onClick={() => setCurrentPage(p => Math.min(totalPages - 1, p + 1))}
+                                        disabled={currentPage >= totalPages - 1}
+                                    >
+                                        <ChevronRight size={16} />
+                                    </Button>
                                 </div>
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-8 w-8 p-0 rounded-lg text-slate-400 hover:text-slate-900"
-                                    onClick={() => setCurrentPage(p => Math.min(totalPages - 1, p + 1))}
-                                    disabled={currentPage >= totalPages - 1}
-                                >
-                                    <ChevronRight size={16} />
-                                </Button>
                             </div>
-                        </div>
-                    );
-                })()}
-            </Card>
+                        );
+                    })()
+                }
+            </Card >
 
             {/* Modal Tambah Data */}
-            {isModalOpen && (
-                <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <Card className="w-full max-w-lg shadow-2xl animate-in zoom-in-95 duration-200">
-                        <div className="flex items-center justify-between mb-6">
-                            <h3 className="text-xl font-black text-slate-900">
-                                {editingItem ? 'Edit Data' : `Tambah ${activeTab === 'staff' ? 'Staff' : activeTab === 'inventory' ? 'Alat' : activeTab === 'machines' ? 'Mesin' : 'Ruangan'} Baru`}
-                            </h3>
-                            <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400">
-                                <X size={20} />
-                            </button>
-                        </div>
-                        <form onSubmit={handleSubmit} className="space-y-4">
+            {
+                isModalOpen && (
+                    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                        <Card className="w-full max-w-lg shadow-2xl animate-in zoom-in-95 duration-200">
+                            <div className="flex items-center justify-between mb-6">
+                                <h3 className="text-xl font-black text-slate-900">
+                                    {editingItem ? 'Edit Data' : `Tambah ${activeTab === 'staff' ? 'Staff' : activeTab === 'inventory' ? 'Alat' : activeTab === 'machines' ? 'Mesin' : 'Ruangan'} Baru`}
+                                </h3>
+                                <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400">
+                                    <X size={20} />
+                                </button>
+                            </div>
+                            <form onSubmit={handleSubmit} className="space-y-4">
 
-                            {/* Form Inventory */}
-                            {activeTab === 'inventory' && (
-                                <>
-                                    <div className="space-y-1.5">
-                                        <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest pl-1">Nama Set / Alat</label>
-                                        <Input
-                                            required
-                                            placeholder="Contoh: Set Bedah Dasar B"
-                                            value={formData.name}
-                                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                        />
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-4">
+                                {/* Form Inventory */}
+                                {activeTab === 'inventory' && (
+                                    <>
                                         <div className="space-y-1.5">
-                                            <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest pl-1">
-                                                {formData.quantity > 1 ? 'Barcode Awal' : 'Barcode / Serial Number'}
-                                            </label>
+                                            <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest pl-1">Nama Set / Alat</label>
                                             <Input
                                                 required
-                                                placeholder="Contoh: SET-099"
-                                                value={formData.barcode}
-                                                onChange={(e) => setFormData({ ...formData, barcode: e.target.value.toUpperCase() })}
+                                                placeholder="Contoh: Set Bedah Dasar B"
+                                                value={formData.name}
+                                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                             />
                                         </div>
-                                        <div className="space-y-1.5">
-                                            <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest pl-1">Jumlah Unit</label>
-                                            <Input
-                                                type="number"
-                                                min={1}
-                                                max={100}
-                                                required
-                                                value={formData.quantity}
-                                                onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 1 })}
-                                                disabled={!!editingItem}
-                                            />
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="space-y-1.5">
+                                                <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest pl-1">
+                                                    {formData.quantity > 1 ? 'Barcode Awal' : 'Barcode / Serial Number'}
+                                                </label>
+                                                <Input
+                                                    required
+                                                    placeholder="Contoh: SET-099"
+                                                    value={formData.barcode}
+                                                    onChange={(e) => setFormData({ ...formData, barcode: e.target.value.toUpperCase() })}
+                                                />
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest pl-1">Jumlah Unit</label>
+                                                <Input
+                                                    type="number"
+                                                    min={1}
+                                                    max={100}
+                                                    required
+                                                    value={formData.quantity}
+                                                    onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 1 })}
+                                                    disabled={!!editingItem}
+                                                />
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div className="space-y-1.5">
-                                        <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest pl-1">Kategori</label>
-                                        <select
-                                            className="w-full p-4 rounded-2xl border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:ring-4 focus:ring-accent-indigo/5 transition-all"
-                                            value={formData.category}
-                                            onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                                        >
-                                            {MASTER_DATA.CATEGORIES.map(c => <option key={c}>{c}</option>)}
-                                        </select>
-                                    </div>
-                                    <div className="space-y-1.5">
-                                        <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest pl-1">Metode Steril Default</label>
-                                        <select
-                                            className="w-full p-4 rounded-2xl border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:ring-4 focus:ring-accent-indigo/5 transition-all"
-                                            value={formData.default_sterilization_method}
-                                            onChange={(e) => setFormData({ ...formData, default_sterilization_method: e.target.value })}
-                                        >
-                                            {MASTER_DATA.STERILIZATION_PROGRAMS.map(p => <option key={p.name} value={p.name}>{p.name}</option>)}
-                                        </select>
-                                    </div>
-                                </>
-                            )}
-
-                            {/* Form Staff */}
-                            {activeTab === 'staff' && (
-                                <>
-                                    <div className="space-y-1.5">
-                                        <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest pl-1">Nama Lengkap</label>
-                                        <Input
-                                            required
-                                            placeholder="Nama Staff"
-                                            value={formData.name}
-                                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                        />
-                                    </div>
-                                    <div className="space-y-1.5">
-                                        <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest pl-1">ID Pegawai</label>
-                                        <Input
-                                            required
-                                            placeholder="Contoh: EMP001"
-                                            value={formData.employeeId}
-                                            onChange={(e) => setFormData({ ...formData, employeeId: e.target.value })}
-                                        />
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-1.5">
-                                            <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest pl-1">Departemen</label>
+                                            <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest pl-1">Kategori</label>
                                             <select
                                                 className="w-full p-4 rounded-2xl border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:ring-4 focus:ring-accent-indigo/5 transition-all"
-                                                value={formData.department}
-                                                onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                                                value={formData.category}
+                                                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                                             >
-                                                {MASTER_DATA.DEPARTMENTS.map(d => <option key={d}>{d}</option>)}
+                                                {MASTER_DATA.CATEGORIES.map(c => <option key={c}>{c}</option>)}
                                             </select>
                                         </div>
                                         <div className="space-y-1.5">
-                                            <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest pl-1">Role</label>
+                                            <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest pl-1">Metode Steril Default</label>
                                             <select
                                                 className="w-full p-4 rounded-2xl border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:ring-4 focus:ring-accent-indigo/5 transition-all"
-                                                value={formData.role}
-                                                onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                                                value={formData.default_sterilization_method}
+                                                onChange={(e) => setFormData({ ...formData, default_sterilization_method: e.target.value })}
                                             >
-                                                {MASTER_DATA.ROLES.map(r => (
-                                                    <option key={r} value={r}>
-                                                        {r === 'operator_cssd' ? 'OPERATOR CSSD' :
-                                                            r === 'operator_ruangan' ? 'OPERATOR RUANGAN' :
-                                                                r.toUpperCase()}
+                                                {MASTER_DATA.STERILIZATION_PROGRAMS.map(p => <option key={p.name} value={p.name}>{p.name}</option>)}
+                                            </select>
+                                        </div>
+                                    </>
+                                )}
+
+                                {/* Form Staff */}
+                                {activeTab === 'staff' && (
+                                    <>
+                                        <div className="space-y-1.5">
+                                            <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest pl-1">Nama Lengkap</label>
+                                            <Input
+                                                required
+                                                placeholder="Nama Staff"
+                                                value={formData.name}
+                                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                            />
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest pl-1">ID Pegawai</label>
+                                            <Input
+                                                required
+                                                placeholder="Contoh: EMP001"
+                                                value={formData.employeeId}
+                                                onChange={(e) => setFormData({ ...formData, employeeId: e.target.value })}
+                                            />
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="space-y-1.5">
+                                                <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest pl-1">Departemen</label>
+                                                <select
+                                                    className="w-full p-4 rounded-2xl border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:ring-4 focus:ring-accent-indigo/5 transition-all"
+                                                    value={formData.department}
+                                                    onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                                                >
+                                                    {MASTER_DATA.DEPARTMENTS.map(d => <option key={d}>{d}</option>)}
+                                                </select>
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest pl-1">Role</label>
+                                                <select
+                                                    className="w-full p-4 rounded-2xl border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:ring-4 focus:ring-accent-indigo/5 transition-all"
+                                                    value={formData.role}
+                                                    onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                                                >
+                                                    {MASTER_DATA.ROLES.map(r => (
+                                                        <option key={r} value={r}>
+                                                            {r === 'operator_cssd' ? 'OPERATOR CSSD' :
+                                                                r === 'operator_ruangan' ? 'OPERATOR RUANGAN' :
+                                                                    r.toUpperCase()}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="space-y-1.5">
+                                                <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest pl-1">Username</label>
+                                                <Input
+                                                    placeholder="username.staff"
+                                                    value={formData.username}
+                                                    onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                                                />
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest pl-1">Password</label>
+                                                <Input
+                                                    type="text"
+                                                    placeholder="password123"
+                                                    value={formData.password}
+                                                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                                                />
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
+
+                                {/* Form Machines */}
+                                {activeTab === 'machines' && (
+                                    <>
+                                        <div className="space-y-1.5">
+                                            <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest pl-1">Nama Mesin</label>
+                                            <Input
+                                                required
+                                                placeholder="Contoh: Autoclave 2A"
+                                                value={formData.name}
+                                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                            />
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest pl-1">Tipe Mesin</label>
+                                            <select
+                                                className="w-full p-4 rounded-2xl border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:ring-4 focus:ring-accent-indigo/5 transition-all"
+                                                value={formData.type}
+                                                onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                                            >
+                                                {MASTER_DATA.MACHINE_TYPES.map(m => (
+                                                    <option key={m} value={m}>
+                                                        {m === 'washer' ? 'Washer Disinfector' : m === 'sterilizer' ? 'Steam Sterilizer (Autoclave)' : 'Plasma Sterilizer'}
                                                     </option>
                                                 ))}
                                             </select>
                                         </div>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-4">
+                                    </>
+                                )}
+
+                                {/* Form Rooms */}
+                                {activeTab === 'rooms' && (
+                                    <>
                                         <div className="space-y-1.5">
-                                            <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest pl-1">Username</label>
+                                            <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest pl-1">Nama Ruangan</label>
                                             <Input
-                                                placeholder="username.staff"
-                                                value={formData.username}
-                                                onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                                                required
+                                                placeholder="Contoh: Poli Umum"
+                                                value={formData.name}
+                                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                             />
                                         </div>
                                         <div className="space-y-1.5">
-                                            <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest pl-1">Password</label>
-                                            <Input
-                                                type="text"
-                                                placeholder="password123"
-                                                value={formData.password}
-                                                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                            />
+                                            <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest pl-1">Person In Charge (PIC)</label>
+                                            <select
+                                                required
+                                                className="w-full p-4 rounded-2xl border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:ring-4 focus:ring-accent-indigo/5 transition-all"
+                                                value={formData.picId}
+                                                onChange={(e) => setFormData({ ...formData, picId: e.target.value })}
+                                            >
+                                                <option value="" disabled>Pilih PIC dari Staff...</option>
+                                                {(staff || []).map(s => (
+                                                    <option key={s.id} value={s.id}>{s.name} ({s.department})</option>
+                                                ))}
+                                            </select>
+                                            <p className="text-[10px] text-slate-400 italic ml-1">Staff terpilih akan menjadi penanggung jawab distribusi alat.</p>
                                         </div>
-                                    </div>
-                                </>
-                            )}
+                                    </>
+                                )}
 
-                            {/* Form Machines */}
-                            {activeTab === 'machines' && (
-                                <>
-                                    <div className="space-y-1.5">
-                                        <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest pl-1">Nama Mesin</label>
-                                        <Input
-                                            required
-                                            placeholder="Contoh: Autoclave 2A"
-                                            value={formData.name}
-                                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                        />
-                                    </div>
-                                    <div className="space-y-1.5">
-                                        <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest pl-1">Tipe Mesin</label>
-                                        <select
-                                            className="w-full p-4 rounded-2xl border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:ring-4 focus:ring-accent-indigo/5 transition-all"
-                                            value={formData.type}
-                                            onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                                        >
-                                            {MASTER_DATA.MACHINE_TYPES.map(m => (
-                                                <option key={m} value={m}>
-                                                    {m === 'washer' ? 'Washer Disinfector' : m === 'sterilizer' ? 'Steam Sterilizer (Autoclave)' : 'Plasma Sterilizer'}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                </>
-                            )}
-
-                            {/* Form Rooms */}
-                            {activeTab === 'rooms' && (
-                                <>
-                                    <div className="space-y-1.5">
-                                        <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest pl-1">Nama Ruangan</label>
-                                        <Input
-                                            required
-                                            placeholder="Contoh: Poli Umum"
-                                            value={formData.name}
-                                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                        />
-                                    </div>
-                                    <div className="space-y-1.5">
-                                        <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest pl-1">Person In Charge (PIC)</label>
-                                        <select
-                                            required
-                                            className="w-full p-4 rounded-2xl border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:ring-4 focus:ring-accent-indigo/5 transition-all"
-                                            value={formData.pic_id}
-                                            onChange={(e) => setFormData({ ...formData, pic_id: e.target.value })}
-                                        >
-                                            <option value="" disabled>Pilih PIC dari Staff...</option>
-                                            {(staff || []).map(s => (
-                                                <option key={s.id} value={s.id}>{s.name} ({s.department})</option>
-                                            ))}
-                                        </select>
-                                        <p className="text-[10px] text-slate-400 italic ml-1">Staff terpilih akan menjadi penanggung jawab distribusi alat.</p>
-                                    </div>
-                                </>
-                            )}
-
-                            <div className="pt-4 flex gap-3">
-                                <Button variant="secondary" className="flex-1" type="button" onClick={() => setIsModalOpen(false)}>Batal</Button>
-                                <Button className="flex-1" type="submit" disabled={createToolMutation.isPending || updateToolMutation.isPending || createStaffMutation.isPending || createMachineMutation.isPending}>
-                                    {createToolMutation.isPending || updateToolMutation.isPending || createStaffMutation.isPending || createMachineMutation.isPending ? 'Menyimpan...' : 'Simpan Data'}
-                                </Button>
-                            </div>
-                        </form>
-                    </Card>
-                </div>
-            )}
+                                <div className="pt-4 flex gap-3">
+                                    <Button variant="secondary" className="flex-1" type="button" onClick={() => setIsModalOpen(false)}>Batal</Button>
+                                    <Button className="flex-1" type="submit" disabled={createToolMutation.isPending || updateToolMutation.isPending || createStaffMutation.isPending || createMachineMutation.isPending}>
+                                        {createToolMutation.isPending || updateToolMutation.isPending || createStaffMutation.isPending || createMachineMutation.isPending ? 'Menyimpan...' : 'Simpan Data'}
+                                    </Button>
+                                </div>
+                            </form>
+                        </Card>
+                    </div>
+                )
+            }
 
             {/* Credentials Modal */}
-            {credentialsModal.isOpen && credentialsModal.staff && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-                    <Card className="w-full max-w-md">
-                        <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-xl font-black text-slate-900">Kredensial Login</h3>
-                            <button onClick={() => setCredentialsModal({ isOpen: false, staff: null })} className="text-slate-400 hover:text-slate-600">
-                                <X size={20} />
-                            </button>
-                        </div>
-
-                        <div className="space-y-4">
-                            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                                <p className="text-[10px] uppercase font-black text-slate-400 tracking-widest mb-2">Nama Staff</p>
-                                <p className="text-lg font-bold text-slate-900">{credentialsModal.staff.name}</p>
+            {
+                credentialsModal.isOpen && credentialsModal.staff && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                        <Card className="w-full max-w-md">
+                            <div className="flex justify-between items-center mb-6">
+                                <h3 className="text-xl font-black text-slate-900">Kredensial Login</h3>
+                                <button onClick={() => setCredentialsModal({ isOpen: false, staff: null })} className="text-slate-400 hover:text-slate-600">
+                                    <X size={20} />
+                                </button>
                             </div>
 
-                            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                                <p className="text-[10px] uppercase font-black text-slate-400 tracking-widest mb-2">Username</p>
-                                <p className="text-lg font-mono font-bold text-slate-900">
-                                    {credentialsModal.staff.username || 'Belum diatur'}
-                                </p>
+                            <div className="space-y-4">
+                                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                                    <p className="text-[10px] uppercase font-black text-slate-400 tracking-widest mb-2">Nama Staff</p>
+                                    <p className="text-lg font-bold text-slate-900">{credentialsModal.staff.name}</p>
+                                </div>
+
+                                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                                    <p className="text-[10px] uppercase font-black text-slate-400 tracking-widest mb-2">Username</p>
+                                    <p className="text-lg font-mono font-bold text-slate-900">
+                                        {credentialsModal.staff.username || 'Belum diatur'}
+                                    </p>
+                                </div>
+
+                                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                                    <p className="text-[10px] uppercase font-black text-slate-400 tracking-widest mb-2">Password</p>
+                                    <p className="text-lg font-mono font-bold text-slate-900">
+                                        {credentialsModal.staff.password || 'Belum diatur'}
+                                    </p>
+                                </div>
+
+                                <div className="p-3 bg-accent-amber/10 border border-accent-amber/20 rounded-xl flex gap-2">
+                                    <div className="text-accent-amber mt-0.5">⚠️</div>
+                                    <p className="text-xs text-slate-600">
+                                        Simpan kredensial ini dengan aman. Dalam produksi, password akan di-hash untuk keamanan.
+                                    </p>
+                                </div>
                             </div>
 
-                            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                                <p className="text-[10px] uppercase font-black text-slate-400 tracking-widest mb-2">Password</p>
-                                <p className="text-lg font-mono font-bold text-slate-900">
-                                    {credentialsModal.staff.password || 'Belum diatur'}
-                                </p>
+                            <div className="mt-6 flex gap-3">
+                                <Button
+                                    variant="secondary"
+                                    className="flex-1"
+                                    onClick={() => {
+                                        const st = credentialsModal.staff;
+                                        setEditingItem(st);
+                                        setFormData({
+                                            name: st.name,
+                                            barcode: '',
+                                            category: MASTER_DATA.CATEGORIES[0],
+                                            quantity: 1,
+                                            employeeId: st.employeeId,
+                                            department: st.department,
+                                            role: st.role,
+                                            username: st.username || '',
+                                            password: st.password || '',
+                                            type: 'washer',
+                                            picId: st.picId || '',
+                                            default_sterilization_method: MASTER_DATA.STERILIZATION_PROGRAMS[0].name
+                                        });
+                                        setCredentialsModal({ isOpen: false, staff: null });
+                                        setIsModalOpen(true);
+                                    }}
+                                >
+                                    <Edit2 size={14} className="mr-2" />
+                                    Edit Kredensial
+                                </Button>
+                                <Button
+                                    className="flex-1"
+                                    onClick={() => setCredentialsModal({ isOpen: false, staff: null })}
+                                >
+                                    Tutup
+                                </Button>
                             </div>
-
-                            <div className="p-3 bg-accent-amber/10 border border-accent-amber/20 rounded-xl flex gap-2">
-                                <div className="text-accent-amber mt-0.5">⚠️</div>
-                                <p className="text-xs text-slate-600">
-                                    Simpan kredensial ini dengan aman. Dalam produksi, password akan di-hash untuk keamanan.
-                                </p>
-                            </div>
-                        </div>
-
-                        <div className="mt-6 flex gap-3">
-                            <Button
-                                variant="secondary"
-                                className="flex-1"
-                                onClick={() => {
-                                    const st = credentialsModal.staff;
-                                    setEditingItem(st);
-                                    setFormData({
-                                        name: st.name,
-                                        barcode: '',
-                                        category: MASTER_DATA.CATEGORIES[0],
-                                        quantity: 1,
-                                        employeeId: st.employeeId,
-                                        department: st.department,
-                                        role: st.role,
-                                        username: st.username || '',
-                                        password: st.password || '',
-                                        type: 'washer',
-                                        pic_id: st.pic_id || '',
-                                        default_sterilization_method: MASTER_DATA.STERILIZATION_PROGRAMS[0].name
-                                    });
-                                    setCredentialsModal({ isOpen: false, staff: null });
-                                    setIsModalOpen(true);
-                                }}
-                            >
-                                <Edit2 size={14} className="mr-2" />
-                                Edit Kredensial
-                            </Button>
-                            <Button
-                                className="flex-1"
-                                onClick={() => setCredentialsModal({ isOpen: false, staff: null })}
-                            >
-                                Tutup
-                            </Button>
-                        </div>
-                    </Card>
-                </div >
-            )}
+                        </Card>
+                    </div >
+                )
+            }
         </div >
     );
 };

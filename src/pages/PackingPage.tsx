@@ -19,7 +19,7 @@ export const PackingPage = () => {
 
     const { data: inventory } = useQuery({ queryKey: ['inventory'], queryFn: api.getInventory });
 
-    const washingItems = inventory?.filter(item => item.status === 'washing') || [];
+    const packingItems = inventory?.filter(item => item.status === 'packing') || [];
     const selectedTool = inventory?.find(item => item.id === selectedItem);
 
     const activeProgram = MASTER_DATA.STERILIZATION_PROGRAMS.find(p => p.id === programId)
@@ -217,7 +217,7 @@ export const PackingPage = () => {
                 <div className="bg-white px-6 py-3 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
                     <div className="flex items-center gap-2">
                         <span className="w-2.5 h-2.5 rounded-full bg-accent-indigo animate-pulse"></span>
-                        <span className="text-sm font-bold text-slate-700">{washingItems.length} Siap Pack</span>
+                        <span className="text-sm font-bold text-slate-700">{packingItems.length} Siap Packing</span>
                     </div>
                 </div>
             </div>
@@ -225,9 +225,9 @@ export const PackingPage = () => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Left: Item list + Checklist */}
                 <div className="lg:col-span-2 space-y-6">
-                    <h4 className="text-xs font-bold uppercase tracking-widest text-slate-400">Pilih Item dari Pencucian</h4>
+                    <h4 className="text-xs font-bold uppercase tracking-widest text-slate-400">Pilih Item dari Antrian Packing</h4>
                     <div className="grid grid-cols-1 gap-4">
-                        {washingItems.length > 0 ? washingItems.map(item => (
+                        {packingItems.length > 0 ? packingItems.map(item => (
                             <Card
                                 key={item.id}
                                 className={cn(
@@ -248,7 +248,7 @@ export const PackingPage = () => {
                                     </div>
                                     <div className="flex items-center gap-2">
                                         <span className="px-3 py-1 bg-accent-indigo/10 text-accent-indigo rounded-full text-[10px] font-black uppercase tracking-widest">
-                                            SELESAI CUCI
+                                            SIAP PACKING
                                         </span>
                                         <div className={cn(
                                             "w-6 h-6 rounded-full border-2 flex items-center justify-center",
@@ -261,7 +261,7 @@ export const PackingPage = () => {
                             </Card>
                         )) : (
                             <div className="text-center py-12 bg-white rounded-3xl border border-dashed border-slate-200">
-                                <p className="text-slate-400">Belum ada alat yang selesai dicuci.</p>
+                                <p className="text-slate-400">Belum ada alat yang siap dipacking.</p>
                             </div>
                         )}
                     </div>

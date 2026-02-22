@@ -23,12 +23,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 fetchProfile(session.user.id);
             } else {
                 // 2. Fallback: Check for mock session in localStorage
-                const mockUser = localStorage.getItem('cssd_mock_user');
-                if (mockUser) {
-                    try {
-                        setUser(JSON.parse(mockUser));
-                    } catch (e) {
-                        localStorage.removeItem('cssd_mock_user');
+                const IS_DEV = import.meta.env.DEV;
+                if (IS_DEV) {
+                    const mockUser = localStorage.getItem('cssd_mock_user');
+                    if (mockUser) {
+                        try {
+                            setUser(JSON.parse(mockUser));
+                        } catch (e) {
+                            localStorage.removeItem('cssd_mock_user');
+                        }
                     }
                 }
                 setIsLoading(false);
@@ -116,6 +119,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 }
 
                 // Mock Login Success
+                const IS_DEV = import.meta.env.DEV;
+                if (!IS_DEV) {
+                    throw new Error("Mock login is only available in development mode.");
+                }
+
                 console.log("Mock Login Success for:", profileCheck.name);
                 const staffUser: Staff = {
                     id: profileCheck.id,

@@ -36,9 +36,9 @@ export const PreSterilizationPage = () => {
     const selectedMachine = sterilizers.find(m => m.id === selectedMachineId);
 
     const isBowieDickValid = (m: any) => {
-        if (!m.last_bowie_dick_date) return false;
+        if (!m.lastBowieDickDate) return false;
         const today = new Date().toISOString().split('T')[0];
-        return m.last_bowie_dick_date === today && m.bowie_dick_status === 'passed';
+        return m.lastBowieDickDate === today && m.bowieDickStatus === 'passed';
     };
 
     const approveMutation = useMutation({

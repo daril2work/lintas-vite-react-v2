@@ -4,4 +4,6 @@ export const APP_CONFIG = {
     APP_COPYRIGHT: `© ${new Date().getFullYear()} Lintas V2`,
     SYSTEM_STATUS: "System Online",
     APP_VERSION: "v2.3.0",
+    /** Daily sterilization target used for efficiency % calculation */
+    EFFICIENCY_DAILY_TARGET: 50,
 };

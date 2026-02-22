@@ -11,12 +11,12 @@ export interface Staff {
 export interface Machine {
     id: string;
     name: string;
-    type: 'washer' | 'sterilizer';
+    type: 'washer' | 'sterilizer' | 'plasma';
     status: 'idle' | 'running' | 'maintenance' | 'error';
     lastService?: string;
     nextService?: string;
-    last_bowie_dick_date?: string;
-    bowie_dick_status?: 'passed' | 'failed' | 'pending';
+    lastBowieDickDate?: string;
+    bowieDickStatus?: 'passed' | 'failed' | 'pending';
     startTime?: string;
     duration?: number;
 }
@@ -73,8 +73,8 @@ export interface ImportantMessage {
 export interface Room {
     id: string;
     name: string;
-    pic_id: string;
-    pic_name?: string;
+    picId: string;
+    picName?: string;
     createdAt?: string;
 }
 

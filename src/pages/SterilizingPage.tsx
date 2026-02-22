@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
-import { Settings, Thermometer, ShieldCheck, Zap, Timer, Activity, ChevronRight, AlertCircle } from 'lucide-react';
+import { Settings, Thermometer, ShieldCheck, Zap, Timer, Activity, ChevronRight, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'sonner';
@@ -33,7 +33,7 @@ export const SterilizingPage = () => {
     const { data: machines } = useQuery({ queryKey: ['machines'], queryFn: api.getMachines });
     const { data: inventory } = useQuery({ queryKey: ['inventory'], queryFn: api.getInventory });
 
-    const sterilizers = machines?.filter(m => m.type === 'sterilizer') || [];
+    const sterilizers = machines?.filter(m => m.type === 'sterilizer' || m.type === 'plasma') || [];
 
     // Items waiting to be put into machine
     const queueItems = inventory?.filter(item => item.status === 'ready_to_sterilize') || [];
@@ -61,16 +61,16 @@ export const SterilizingPage = () => {
         return Math.min(100, (elapsed / totalDurationMs) * 100);
     };
 
-    const isCycleComplete = (m: typeof sterilizers[0]) => {
-        if (m.status !== 'running' || !m.startTime || !m.duration) return false;
+    const isCycleComplete = (m: typeof sterilizers[0] | undefined) => {
+        if (!m || m.status !== 'running' || !m.startTime || !m.duration) return false;
         const elapsed = new Date().getTime() - new Date(m.startTime).getTime();
         return elapsed >= m.duration * 60 * 1000;
     };
 
     const isBowieDickValid = (m: typeof sterilizers[0]) => {
-        if (!m.last_bowie_dick_date) return false;
+        if (!m.lastBowieDickDate) return false;
         const today = new Date().toISOString().split('T')[0];
-        return m.last_bowie_dick_date === today && m.bowie_dick_status === 'passed';
+        return m.lastBowieDickDate === today && m.bowieDickStatus === 'passed';
     };
 
     const toggleItem = (id: string) => {
@@ -140,7 +140,7 @@ export const SterilizingPage = () => {
             queryClient.invalidateQueries({ queryKey: ['machines'] });
             queryClient.invalidateQueries({ queryKey: ['inventory'] });
             toast.success('Selesai!', {
-                description: 'Proses unload berhasil. Alat dipindahkan ke Penyimpanan.',
+                description: 'Mesin kembali Idle dan alat telah dipindahkan ke Penyimpanan.',
             });
         },
         onError: (error: any) => {
@@ -148,6 +148,19 @@ export const SterilizingPage = () => {
             toast.error('Gagal!', {
                 description: `Gagal menyelesaikan sterilisasi: ${error.message || 'Unknown error'}`,
             });
+        }
+    });
+
+    const finishIndividualMutation = useMutation({
+        mutationFn: (toolId: string) => api.finishIndividualTool(toolId),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['inventory'] });
+            queryClient.invalidateQueries({ queryKey: ['machines'] });
+            toast.success('Alat dipindahkan ke Penyimpanan');
+        },
+        onError: (error: any) => {
+            console.error('Individual finish error:', error);
+            toast.error('Gagal memindahkan alat');
         }
     });
 
@@ -446,6 +459,24 @@ export const SterilizingPage = () => {
                                                     <p className="text-[9px] text-slate-500 font-medium">
                                                         Di Mesin: <span className="text-accent-indigo font-bold">{machine?.name || '---'}</span>
                                                     </p>
+                                                </div>
+                                                <div className="flex flex-col items-end gap-2 shrink-0">
+                                                    <div className="flex items-center gap-1.5 px-3 py-1 bg-accent-amber/10 text-accent-amber rounded-full">
+                                                        <div className="w-1.5 h-1.5 rounded-full bg-accent-amber animate-pulse" />
+                                                        <span className="text-[10px] font-black uppercase tracking-widest">Sterilizing</span>
+                                                    </div>
+                                                    {(!machine || isCycleComplete(machine as any)) && (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="secondary"
+                                                            className="h-8 text-[10px] font-bold uppercase tracking-tight gap-1.5 border-accent-emerald text-accent-emerald hover:bg-accent-emerald/5"
+                                                            disabled={finishIndividualMutation.isPending}
+                                                            onClick={() => finishIndividualMutation.mutate(item.id)}
+                                                        >
+                                                            <CheckCircle2 size={12} />
+                                                            Selesai & Unload
+                                                        </Button>
+                                                    )}
                                                 </div>
                                             </div>
                                         );

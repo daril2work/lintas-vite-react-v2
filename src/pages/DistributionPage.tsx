@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { Card } from '../components/ui/Card';
@@ -20,6 +20,53 @@ export const DistributionPage = () => {
     const [verificationMethod, setVerificationMethod] = useState<'signature' | 'photo' | 'print'>('signature');
     const [photoEvidence, setPhotoEvidence] = useState<string | null>(null);
     const [showPrintModal, setShowPrintModal] = useState(false);
+    const [hasSignature, setHasSignature] = useState(false);
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const isDrawingRef = useRef(false);
+
+    const getCanvasPos = (e: React.PointerEvent<HTMLCanvasElement>) => {
+        const canvas = canvasRef.current!;
+        const rect = canvas.getBoundingClientRect();
+        return {
+            x: (e.clientX - rect.left) * (canvas.width / rect.width),
+            y: (e.clientY - rect.top) * (canvas.height / rect.height)
+        };
+    };
+
+    const startDraw = useCallback((e: React.PointerEvent<HTMLCanvasElement>) => {
+        isDrawingRef.current = true;
+        const canvas = canvasRef.current!;
+        const ctx = canvas.getContext('2d')!;
+        const pos = getCanvasPos(e);
+        ctx.beginPath();
+        ctx.moveTo(pos.x, pos.y);
+        (e.target as HTMLCanvasElement).setPointerCapture(e.pointerId);
+    }, []);
+
+    const draw = useCallback((e: React.PointerEvent<HTMLCanvasElement>) => {
+        if (!isDrawingRef.current) return;
+        const canvas = canvasRef.current!;
+        const ctx = canvas.getContext('2d')!;
+        ctx.lineWidth = 2.5;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.strokeStyle = '#1e293b';
+        const pos = getCanvasPos(e);
+        ctx.lineTo(pos.x, pos.y);
+        ctx.stroke();
+        setHasSignature(true);
+    }, []);
+
+    const endDraw = useCallback(() => {
+        isDrawingRef.current = false;
+    }, []);
+
+    const clearSignature = useCallback(() => {
+        const canvas = canvasRef.current!;
+        const ctx = canvas.getContext('2d')!;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        setHasSignature(false);
+    }, []);
 
     const { data: inventory } = useQuery({ queryKey: ['inventory'], queryFn: api.getInventory });
     const { data: requests } = useQuery({ queryKey: ['requests'], queryFn: api.getRequests });
@@ -68,6 +115,8 @@ export const DistributionPage = () => {
             setSelectedStaff('');
             setShowSignature(false);
             setPhotoEvidence(null);
+            clearSignature();
+            setHasSignature(false);
             toast.success('Distribusi Berhasil!', {
                 description: `Alat telah diserahkan ke ${selectedStaff}.`,
             });
@@ -150,8 +199,8 @@ export const DistributionPage = () => {
                                             const matchingRoom = rooms?.find(r => r.name.toLowerCase() === req.ward.toLowerCase());
                                             if (matchingRoom) {
                                                 setSelectedRoom(matchingRoom.id);
-                                                if (matchingRoom.pic_name) {
-                                                    setSelectedStaff(matchingRoom.pic_name);
+                                                if (matchingRoom.picName) {
+                                                    setSelectedStaff(matchingRoom.picName);
                                                 }
                                             }
                                         }}
@@ -320,8 +369,8 @@ export const DistributionPage = () => {
                                                 )}
                                                 onClick={() => {
                                                     setSelectedRoom(room.id);
-                                                    if (room.pic_name) {
-                                                        setSelectedStaff(room.pic_name);
+                                                    if (room.picName) {
+                                                        setSelectedStaff(room.picName);
                                                     }
                                                 }}
                                             >
@@ -334,7 +383,7 @@ export const DistributionPage = () => {
                                                     </div>
                                                     <div>
                                                         <p className="text-sm font-bold text-slate-900">{room.name}</p>
-                                                        <p className="text-[10px] text-slate-500 uppercase font-bold">PIC: {room.pic_name || 'Belum Diatur'}</p>
+                                                        <p className="text-[10px] text-slate-500 uppercase font-bold">PIC: {room.picName || 'Belum Diatur'}</p>
                                                     </div>
                                                 </div>
                                             </Card>
@@ -364,7 +413,7 @@ export const DistributionPage = () => {
                                         const staffName = e.target.value;
                                         setSelectedStaff(staffName);
                                         // Auto-select room based on PIC
-                                        const roomForStaff = rooms?.find(r => r.pic_name === staffName);
+                                        const roomForStaff = rooms?.find(r => r.picName === staffName);
                                         if (roomForStaff) {
                                             setSelectedRoom(roomForStaff.id);
                                         }
@@ -423,12 +472,36 @@ export const DistributionPage = () => {
                                     </div>
 
                                     {verificationMethod === 'signature' ? (
-                                        <div className="aspect-video bg-slate-50 border-2 border-dashed border-slate-300 rounded-2xl flex flex-col items-center justify-center text-slate-300 relative group overflow-hidden">
-                                            <PenTool size={32} className="group-hover:scale-110 transition-transform" />
-                                            <span className="text-[10px] mt-2 font-bold uppercase">Sign Here</span>
-                                            <div className="absolute inset-0 bg-white/20 opacity-0 active:opacity-100 transition-opacity flex items-center justify-center cursor-crosshair">
-                                                <span className="text-slate-900 font-serif italic text-2xl">Accepted</span>
+                                        <div className="space-y-2">
+                                            <div
+                                                className="aspect-video bg-slate-50 border-2 border-dashed border-slate-300 rounded-2xl overflow-hidden relative"
+                                                style={{ touchAction: 'none' }}
+                                            >
+                                                <canvas
+                                                    ref={canvasRef}
+                                                    width={600}
+                                                    height={280}
+                                                    className="w-full h-full cursor-crosshair"
+                                                    onPointerDown={startDraw}
+                                                    onPointerMove={draw}
+                                                    onPointerUp={endDraw}
+                                                    onPointerLeave={endDraw}
+                                                />
+                                                {!hasSignature && (
+                                                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-slate-300">
+                                                        <PenTool size={28} />
+                                                        <span className="text-[10px] mt-2 font-bold uppercase">Tanda Tangan Di Sini</span>
+                                                    </div>
+                                                )}
                                             </div>
+                                            {hasSignature && (
+                                                <button
+                                                    onClick={clearSignature}
+                                                    className="text-[10px] text-slate-400 hover:text-accent-rose transition-colors font-bold uppercase tracking-widest"
+                                                >
+                                                    Hapus Tanda Tangan
+                                                </button>
+                                            )}
                                         </div>
                                     ) : verificationMethod === 'photo' ? (
                                         <div className="space-y-3">
@@ -491,7 +564,7 @@ export const DistributionPage = () => {
                                             size="sm"
                                             className="bg-accent-emerald text-white flex-1 shadow-lg shadow-accent-emerald/20"
                                             onClick={() => distributeMutation.mutate(selectedItem!)}
-                                            disabled={distributeMutation.isPending || (verificationMethod === 'photo' && !photoEvidence)}
+                                            disabled={distributeMutation.isPending || (verificationMethod === 'photo' && !photoEvidence) || (verificationMethod === 'signature' && !hasSignature)}
                                         >
                                             {distributeMutation.isPending ? 'Mengirim...' : 'Konfirmasi & Kirim'}
                                         </Button>
