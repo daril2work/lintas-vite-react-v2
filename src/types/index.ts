@@ -27,12 +27,14 @@ export interface ToolSet {
     barcode: string;
     category: string;
     lastSterilized?: string;
-    status: 'dirty' | 'washing' | 'packing' | 'ready_to_sterilize' | 'sterilizing' | 'stored' | 'sterile' | 'distributed' | 'in_use';
+    status: 'sent' | 'dirty' | 'washing' | 'packing' | 'ready_to_sterilize' | 'sterilizing' | 'stored' | 'sterile' | 'distributed' | 'in_use';
     room_id?: string;
     machine_id?: string;
     expire_date?: string;
     sterilization_method?: string;
     default_sterilization_method?: string;
+    is_active?: boolean;
+    is_validated?: boolean;
 }
 
 export interface WorkflowLog {

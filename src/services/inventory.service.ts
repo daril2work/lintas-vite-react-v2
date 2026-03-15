@@ -10,7 +10,7 @@ export const MASTER_DATA = {
 export const inventoryService = {
     // Inventory
     getInventory: async (): Promise<ToolSet[]> => {
-        const { data, error } = await supabase.from('inventory').select('*').order('name');
+        const { data, error } = await supabase.from('inventory').select('*').eq('is_active', true).order('name');
         if (error) throw error;
         return data as ToolSet[];
     },
@@ -31,7 +31,7 @@ export const inventoryService = {
     },
 
     deleteTool: async (id: string): Promise<void> => {
-        const { error } = await supabase.from('inventory').delete().eq('id', id);
+        const { error } = await supabase.from('inventory').update({ is_active: false }).eq('id', id);
         if (error) throw error;
     },
 
@@ -104,6 +104,7 @@ export const inventoryService = {
         const { data, error } = await supabase
             .from('rooms')
             .select('*, pic:profiles(name)')
+            .eq('is_active', true)
             .order('name');
 
         if (error) throw error;
@@ -134,8 +135,24 @@ export const inventoryService = {
     },
 
     deleteRoom: async (id: string): Promise<void> => {
-        const { error } = await supabase.from('rooms').delete().eq('id', id);
+        const { error } = await supabase.from('rooms').update({ is_active: false }).eq('id', id);
         if (error) throw error;
+    },
+
+    createTemporaryTool: async (data: { name: string; room_id: string; category?: string }): Promise<ToolSet> => {
+        const tempBarcode = `TEMP-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
+        const { data: newTool, error } = await supabase.from('inventory').insert([{
+            name: data.name,
+            room_id: data.room_id,
+            category: data.category || 'Uncategorized',
+            barcode: tempBarcode,
+            status: 'in_use',
+            is_validated: false,
+            is_active: true
+        }]).select('*').single();
+
+        if (error) throw error;
+        return newTool as ToolSet;
     },
 
     // Workflow Actions
@@ -148,7 +165,7 @@ export const inventoryService = {
 
     sendDirty: async (id: string): Promise<void> => {
         const { error } = await supabase.from('inventory')
-            .update({ status: 'dirty', room_id: null })
+            .update({ status: 'sent', room_id: null })
             .eq('id', id);
         if (error) throw error;
     },

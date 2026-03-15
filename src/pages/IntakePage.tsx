@@ -4,7 +4,7 @@ import { api } from '../services/api';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
-import { PackageSearch, Camera, History, AlertCircle, Trash2, CheckCircle2, AlertTriangle, Box, X } from 'lucide-react';
+import { PackageSearch, Camera, History, AlertCircle, Trash2, CheckCircle2, AlertTriangle, Box, X, Plus } from 'lucide-react';
 import { cn } from '../utils/cn';
 import type { ToolSet } from '../types';
 import { useAuth } from '../context/AuthContext';
@@ -24,6 +24,11 @@ export const IntakePage = () => {
     const [isDeliveryModalOpen, setIsDeliveryModalOpen] = useState(false);
     const [selectedOrigin, setSelectedOrigin] = useState('');
     const [selectedTools, setSelectedTools] = useState<string[]>([]);
+
+    // New state for unregistered items
+    const [isTempModalOpen, setIsTempModalOpen] = useState(false);
+    const [tempName, setTempName] = useState('');
+    const [tempCategory, setTempCategory] = useState('');
     const queryClient = useQueryClient();
 
     const { data: inventory, isLoading } = useQuery({
@@ -81,6 +86,21 @@ export const IntakePage = () => {
         }
     });
 
+    const createTempMutation = useMutation({
+        mutationFn: api.createTemporaryTool,
+        onSuccess: (newTool) => {
+            queryClient.invalidateQueries({ queryKey: ['inventory'] });
+            addToBasket(newTool, selectedOrigin || departments[0]);
+            setIsTempModalOpen(false);
+            setTempName('');
+            setTempCategory('');
+            toast.success('Alat sementara berhasil dibuat & masuk keranjang');
+        },
+        onError: (error: any) => {
+            toast.error('Gagal membuat alat sementara: ' + (error.message || 'Error'));
+        }
+    });
+
     const addToBasket = (item: ToolSet, origin?: string) => {
         if (basket.find(v => v.id === item.id)) return;
         setBasket([...basket, { ...item, condition: 'good', photoCaptured: false, origin }]);
@@ -120,7 +140,7 @@ export const IntakePage = () => {
 
     const availableItems = inventory?.filter(item =>
         (item.name.toLowerCase().includes(search.toLowerCase()) || item.barcode.includes(search)) &&
-        (item.status === 'distributed' || item.status === 'sterile') &&
+        (item.status === 'distributed' || item.status === 'sterile' || item.status === 'sent') &&
         !basket.find(v => v.id === item.id)
     ) || [];
 
@@ -169,7 +189,20 @@ export const IntakePage = () => {
                     </Card>
 
                     <div className="space-y-4">
-                        <h4 className="text-xs font-bold uppercase tracking-widest text-slate-400">Hasil Pencarian Alat</h4>
+                        <div className="flex items-center justify-between">
+                            <h4 className="text-xs font-bold uppercase tracking-widest text-slate-400">Hasil Pencarian Alat</h4>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 text-[10px] gap-1.5 text-accent-indigo hover:text-accent-indigo hover:bg-accent-indigo/10 border border-accent-indigo/20"
+                                onClick={() => {
+                                    setIsTempModalOpen(true);
+                                }}
+                            >
+                                <Plus size={12} />
+                                Alat Belum Terdaftar?
+                            </Button>
+                        </div>
                         <div className="grid grid-cols-1 gap-4">
                             {isLoading ? (
                                 [1, 2].map(i => <div key={i} className="h-24 bg-slate-100 rounded-3xl animate-pulse" />)
@@ -405,6 +438,63 @@ export const IntakePage = () => {
                                     onClick={handleBatchTransfer}
                                 >
                                     Pindahkan ke Keranjang ({selectedTools.length})
+                                </Button>
+                            </div>
+                        </div>
+                    </Card>
+                </div>
+            )}
+
+            {/* Modal Alat Sementara */}
+            {isTempModalOpen && (
+                <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <Card className="w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200">
+                        <div className="flex items-center justify-between mb-6">
+                            <div>
+                                <h3 className="text-lg font-black text-slate-900">Alat Belum Terdaftar</h3>
+                                <p className="text-[10px] text-slate-500 mt-1 uppercase tracking-widest font-bold">Input sementara untuk pengiriman urgent</p>
+                            </div>
+                            <button onClick={() => setIsTempModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400">
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <div className="space-y-4">
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nama Alat/Set</label>
+                                <Input
+                                    placeholder="Contoh: Set Obsgyn Kiriman Darurat"
+                                    value={tempName}
+                                    onChange={(e) => setTempName(e.target.value)}
+                                    autoFocus
+                                />
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Kategori (Opsional)</label>
+                                <Input
+                                    placeholder="Contoh: Bedah Umum"
+                                    value={tempCategory}
+                                    onChange={(e) => setTempCategory(e.target.value)}
+                                />
+                            </div>
+
+                            <div className="pt-4 flex gap-3">
+                                <Button variant="secondary" className="flex-1" onClick={() => setIsTempModalOpen(false)}>Batal</Button>
+                                <Button
+                                    className="flex-1 bg-accent-indigo hover:bg-indigo-600 text-white"
+                                    disabled={!tempName || createTempMutation.isPending}
+                                    onClick={() => {
+                                        // Use selectedOrigin from the page state
+                                        const originToUse = selectedOrigin || departments[0];
+                                        createTempMutation.mutate({
+                                            name: tempName,
+                                            room_id: (staff?.find(s => s.department === originToUse) as any)?.room_id || '00000000-0000-0000-0000-000000000000',
+                                            category: tempCategory
+                                        });
+                                    }}
+                                >
+                                    {createTempMutation.isPending ? 'Proses...' : 'Buat & Masukkan Keranjang'}
                                 </Button>
                             </div>
                         </div>

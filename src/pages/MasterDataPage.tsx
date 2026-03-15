@@ -4,7 +4,7 @@ import { api, MASTER_DATA } from '../services/api';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
-import { Users, Database, Settings, Plus, Search, Edit2, Trash2, X, ChevronRight, PackageCheck, Box } from 'lucide-react';
+import { Users, Database, Settings, PackageCheck, Plus, Search, Edit2, Trash2, Box, Info, X, Copy, Check, Link as LinkIcon, ChevronRight, AlertTriangle } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { toast } from 'sonner';
 
@@ -24,7 +24,6 @@ export const MasterDataPage = () => {
         department: MASTER_DATA.DEPARTMENTS[0],
         role: MASTER_DATA.ROLES[0],
         username: '',
-        password: '',
         // Machine fields
         type: MASTER_DATA.MACHINE_TYPES[0],
         // Room fields
@@ -34,9 +33,17 @@ export const MasterDataPage = () => {
     // Edit & delete states
     const [editingItem, setEditingItem] = useState<any>(null);
     const [expandedGroup, setExpandedGroup] = useState<string | null>(null);
-    const [credentialsModal, setCredentialsModal] = useState<{ isOpen: boolean, staff: any | null }>({ isOpen: false, staff: null });
+    const [inviteLink, setInviteLink] = useState<string | null>(null);
+    const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+    const [copied, setCopied] = useState(false);
     const [currentPage, setCurrentPage] = useState(0);
     const [searchQuery, setSearchQuery] = useState('');
+    const [deleteConfirm, setDeleteConfirm] = useState<{
+        show: boolean;
+        id: string;
+        name: string;
+        type: 'staff' | 'inventory' | 'machine' | 'room';
+    }>({ show: false, id: '', name: '', type: 'staff' });
     const itemsPerPage = 10;
 
     const queryClient = useQueryClient();
@@ -89,19 +96,25 @@ export const MasterDataPage = () => {
     });
 
     const createStaffMutation = useMutation({
-        mutationFn: api.createStaff,
-        onSuccess: () => {
+        mutationFn: api.createInviteToken,
+        onSuccess: (token: string) => {
             queryClient.invalidateQueries({ queryKey: ['staff'] });
             setIsModalOpen(false);
+
+            const baseUrl = window.location.origin;
+            const fullLink = `${baseUrl}/signup?token=${token}`;
+            setInviteLink(fullLink);
+            setIsInviteModalOpen(true);
+
             resetForm();
-            toast.success('Berhasil!', {
-                description: 'Data staff telah ditambahkan.',
+            toast.success('Link Undangan Dibuat!', {
+                description: 'Silakan copy link pendaftaran di bawah dan berikan kepada staff terkait.',
             });
         },
         onError: (error: any) => {
-            console.error('Create Staff Error:', error);
+            console.error('Create Invite Error:', error);
             toast.error('Gagal!', {
-                description: `Gagal menambah staff: ${error.message || 'Unknown error'}`,
+                description: `Gagal membuat link undangan: ${error.message || 'Unknown error'}`,
             });
         }
     });
@@ -125,7 +138,7 @@ export const MasterDataPage = () => {
     });
 
     const updateToolMutation = useMutation({
-        mutationFn: ({ id, data }: { id: string, data: any }) => api.updateTool(id, data),
+        mutationFn: ({ id, data }: { id: string, data: any }) => api.updateTool(id, { ...data, is_validated: true }),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['inventory'] });
             setEditingItem(null);
@@ -137,19 +150,36 @@ export const MasterDataPage = () => {
         onError: (error: any) => {
             console.error('Update Tool Error:', error);
             toast.error('Gagal!', {
-                description: `Gagal update alat: ${error.message || 'Unknown error'}`,
+                description: getFriendlyErrorMessage(error, 'memperbarui alat'),
             });
         }
     });
+
+    const getFriendlyErrorMessage = (error: any, action: string) => {
+        const message = error?.message || '';
+        if (message.includes('foreign key constraint')) {
+            return `Data tidak bisa ${action} karena masih memiliki riwayat aktivitas atau sedang digunakan di bagian lain.`;
+        }
+        if (message.includes('policy')) {
+            return `Anda tidak memiliki izin untuk ${action} data ini.`;
+        }
+        return `Gagal ${action}: ${message || 'Terjadi kesalahan sistem'}`;
+    };
 
     const deleteToolMutation = useMutation({
         mutationFn: api.deleteTool,
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['inventory'] });
             toast.success('Berhasil!', {
-                description: 'Data alat telah dihapus.',
+                description: 'Data alat telah diarsipkan.',
             });
         },
+        onError: (error: any) => {
+            console.error('Delete Tool Error:', error);
+            toast.error('Gagal!', {
+                description: getFriendlyErrorMessage(error, 'menghapus alat'),
+            });
+        }
     });
 
     const updateStaffMutation = useMutation({
@@ -158,7 +188,6 @@ export const MasterDataPage = () => {
             queryClient.invalidateQueries({ queryKey: ['staff'] });
             setEditingItem(null);
             setIsModalOpen(false);
-            setCredentialsModal({ isOpen: false, staff: null });
             toast.success('Berhasil!', {
                 description: 'Data staff telah diperbarui.',
             });
@@ -166,7 +195,7 @@ export const MasterDataPage = () => {
         onError: (error: any) => {
             console.error('Update Staff Error:', error);
             toast.error('Gagal!', {
-                description: `Gagal update staff: ${error.message || 'Unknown error'}`,
+                description: getFriendlyErrorMessage(error, 'memperbarui staff'),
             });
         }
     });
@@ -176,13 +205,13 @@ export const MasterDataPage = () => {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['staff'] });
             toast.success('Berhasil!', {
-                description: 'Data staff telah dihapus.',
+                description: 'Data staff telah diarsipkan.',
             });
         },
         onError: (error: any) => {
             console.error('Delete Staff Error:', error);
             toast.error('Gagal!', {
-                description: `Gagal hapus staff: ${error.message || 'Unknown error'}`,
+                description: getFriendlyErrorMessage(error, 'menghapus staff'),
             });
         }
     });
@@ -200,7 +229,7 @@ export const MasterDataPage = () => {
         onError: (error: any) => {
             console.error('Update Machine Error:', error);
             toast.error('Gagal!', {
-                description: `Gagal update mesin: ${error.message || 'Unknown error'}`,
+                description: getFriendlyErrorMessage(error, 'memperbarui mesin'),
             });
         }
     });
@@ -210,13 +239,13 @@ export const MasterDataPage = () => {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['machines'] });
             toast.success('Berhasil!', {
-                description: 'Data mesin telah dihapus.',
+                description: 'Data mesin telah diarsipkan.',
             });
         },
         onError: (error: any) => {
             console.error('Delete Machine Error:', error);
             toast.error('Gagal!', {
-                description: `Gagal hapus mesin: ${error.message || 'Unknown error'}`,
+                description: getFriendlyErrorMessage(error, 'menghapus mesin'),
             });
         }
     });
@@ -234,7 +263,7 @@ export const MasterDataPage = () => {
         onError: (error: any) => {
             console.error('Create Room Error:', error);
             toast.error('Gagal!', {
-                description: `Gagal menambah ruangan: ${error.message || 'Unknown error'}`,
+                description: getFriendlyErrorMessage(error, 'menambah ruangan'),
             });
         }
     });
@@ -252,7 +281,7 @@ export const MasterDataPage = () => {
         onError: (error: any) => {
             console.error('Update Room Error:', error);
             toast.error('Gagal!', {
-                description: `Gagal update ruangan: ${error.message || 'Unknown error'}`,
+                description: getFriendlyErrorMessage(error, 'memperbarui ruangan'),
             });
         }
     });
@@ -262,13 +291,13 @@ export const MasterDataPage = () => {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['rooms'] });
             toast.success('Berhasil!', {
-                description: 'Data ruangan telah dihapus.',
+                description: 'Data ruangan telah diarsipkan.',
             });
         },
         onError: (error: any) => {
             console.error('Delete Room Error:', error);
             toast.error('Gagal!', {
-                description: `Gagal hapus ruangan: ${error.message || 'Unknown error'}`,
+                description: getFriendlyErrorMessage(error, 'menghapus ruangan'),
             });
         }
     });
@@ -277,7 +306,7 @@ export const MasterDataPage = () => {
         setFormData({
             name: '', barcode: '', category: MASTER_DATA.CATEGORIES[0], quantity: 1,
             employeeId: '', department: MASTER_DATA.DEPARTMENTS[0], role: MASTER_DATA.ROLES[0],
-            username: '', password: '',
+            username: '',
             type: MASTER_DATA.MACHINE_TYPES[0],
             picId: '',
             default_sterilization_method: MASTER_DATA.STERILIZATION_PROGRAMS[0].name
@@ -339,22 +368,16 @@ export const MasterDataPage = () => {
                         employeeId: formData.employeeId,
                         department: formData.department,
                         role: formData.role as any,
-                        username: formData.username,
-                        password: formData.password
+                        username: formData.username
                     }
                 });
             } else {
-                // Auto-generate username and password for new staff if not provided
-                const username = formData.username || formData.name.toLowerCase().replace(/\s+/g, '.');
-                const password = formData.password || Math.random().toString(36).slice(-8);
-
                 createStaffMutation.mutate({
                     name: formData.name,
                     employeeId: formData.employeeId,
                     department: formData.department,
                     role: formData.role as any,
-                    username,
-                    password
+                    username: formData.username // This is the email
                 });
             }
         } else if (activeTab === 'machines') {
@@ -531,14 +554,7 @@ export const MasterDataPage = () => {
                                         </span>
                                     </td>
                                     <td className="px-8 py-5">
-                                        <Button
-                                            size="sm"
-                                            variant="secondary"
-                                            onClick={() => setCredentialsModal({ isOpen: true, staff: item })}
-                                            className="text-xs"
-                                        >
-                                            Detail
-                                        </Button>
+                                        <span className="text-xs text-slate-400 italic">Auth via Email</span>
                                     </td>
                                     <td className="px-8 py-5 text-right flex justify-end gap-2">
                                         <button
@@ -553,7 +569,6 @@ export const MasterDataPage = () => {
                                                     department: item.department,
                                                     role: item.role,
                                                     username: item.username || '',
-                                                    password: item.password || '',
                                                     type: 'washer',
                                                     picId: '',
                                                     default_sterilization_method: MASTER_DATA.STERILIZATION_PROGRAMS[0].name
@@ -566,13 +581,19 @@ export const MasterDataPage = () => {
                                             <Edit2 size={16} />
                                         </button>
                                         <button
-                                            onClick={() => {
-                                                if (confirm(`Apakah Anda yakin ingin menghapus staff "${item.name}"?`)) {
-                                                    deleteStaffMutation.mutate(item.id);
-                                                }
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                setDeleteConfirm({
+                                                    show: true,
+                                                    id: item.id,
+                                                    name: item.name,
+                                                    type: 'staff'
+                                                });
                                             }}
                                             className="p-1.5 text-slate-400 hover:text-accent-rose hover:bg-accent-rose/10 rounded transition-colors"
-                                            title="Hapus Staff"
+                                            title="Arsipkan Staff"
                                         >
                                             <Trash2 size={16} />
                                         </button>
@@ -649,12 +670,19 @@ export const MasterDataPage = () => {
                                                                 <tr key={item.id} className="hover:bg-slate-100/50">
                                                                     <td className="py-3 font-mono text-slate-600">{item.barcode}</td>
                                                                     <td className="py-3">
-                                                                        <span className={cn(
-                                                                            "px-2 py-0.5 rounded text-[10px] font-bold uppercase",
-                                                                            item.status === 'sterile' ? "bg-accent-emerald/10 text-accent-emerald" : "bg-slate-100 text-slate-500"
-                                                                        )}>
-                                                                            {item.status}
-                                                                        </span>
+                                                                        <div className="flex flex-col gap-1">
+                                                                            <span className={cn(
+                                                                                "px-2 py-0.5 rounded text-[10px] font-bold uppercase w-fit",
+                                                                                item.status === 'sterile' ? "bg-accent-emerald/10 text-accent-emerald" : "bg-slate-100 text-slate-500"
+                                                                            )}>
+                                                                                {item.status}
+                                                                            </span>
+                                                                            {item.is_validated === false && (
+                                                                                <span className="px-2 py-0.5 rounded text-[8px] font-black uppercase w-fit bg-accent-amber/20 text-accent-amber border border-accent-amber/10 animate-pulse">
+                                                                                    Belum Tervalidasi
+                                                                                </span>
+                                                                            )}
+                                                                        </div>
                                                                     </td>
                                                                     <td className="py-3 text-right flex justify-end gap-2">
                                                                         <button
@@ -670,7 +698,6 @@ export const MasterDataPage = () => {
                                                                                     department: MASTER_DATA.DEPARTMENTS[0],
                                                                                     role: MASTER_DATA.ROLES[0],
                                                                                     username: '',
-                                                                                    password: '',
                                                                                     type: 'washer',
                                                                                     picId: '',
                                                                                     default_sterilization_method: item.default_sterilization_method || MASTER_DATA.STERILIZATION_PROGRAMS[0].name
@@ -683,14 +710,19 @@ export const MasterDataPage = () => {
                                                                             <Edit2 size={14} />
                                                                         </button>
                                                                         <button
+                                                                            type="button"
                                                                             onClick={(e) => {
+                                                                                e.preventDefault();
                                                                                 e.stopPropagation();
-                                                                                if (confirm(`Apakah Anda yakin ingin menghapus alat "${item.name}" (${item.barcode})?`)) {
-                                                                                    deleteToolMutation.mutate(item.id);
-                                                                                }
+                                                                                setDeleteConfirm({
+                                                                                    show: true,
+                                                                                    id: item.id,
+                                                                                    name: `${item.name} (${item.barcode})`,
+                                                                                    type: 'inventory'
+                                                                                });
                                                                             }}
                                                                             className="p-1.5 text-slate-400 hover:text-accent-rose hover:bg-accent-rose/10 rounded transition-colors"
-                                                                            title="Hapus Item"
+                                                                            title="Arsipkan Item"
                                                                         >
                                                                             <Trash2 size={14} />
                                                                         </button>
@@ -735,7 +767,6 @@ export const MasterDataPage = () => {
                                                     department: MASTER_DATA.DEPARTMENTS[0],
                                                     role: MASTER_DATA.ROLES[0],
                                                     username: '',
-                                                    password: '',
                                                     type: item.type as any,
                                                     picId: '',
                                                     default_sterilization_method: (item as any).default_sterilization_method || MASTER_DATA.STERILIZATION_PROGRAMS[0].name
@@ -748,13 +779,19 @@ export const MasterDataPage = () => {
                                             <Edit2 size={16} />
                                         </button>
                                         <button
-                                            onClick={() => {
-                                                if (confirm(`Apakah Anda yakin ingin menghapus mesin "${item.name}"?`)) {
-                                                    deleteMachineMutation.mutate(item.id);
-                                                }
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                setDeleteConfirm({
+                                                    show: true,
+                                                    id: item.id,
+                                                    name: item.name,
+                                                    type: 'machine'
+                                                });
                                             }}
                                             className="p-1.5 text-slate-400 hover:text-accent-rose hover:bg-accent-rose/10 rounded transition-colors"
-                                            title="Hapus Mesin"
+                                            title="Arsipkan Mesin"
                                         >
                                             <Trash2 size={16} />
                                         </button>
@@ -791,7 +828,6 @@ export const MasterDataPage = () => {
                                                     department: MASTER_DATA.DEPARTMENTS[0],
                                                     role: MASTER_DATA.ROLES[0],
                                                     username: '',
-                                                    password: '',
                                                     type: 'washer',
                                                     picId: item.picId,
                                                     default_sterilization_method: (item as any).default_sterilization_method || MASTER_DATA.STERILIZATION_PROGRAMS[0].name
@@ -804,13 +840,19 @@ export const MasterDataPage = () => {
                                             <Edit2 size={16} />
                                         </button>
                                         <button
-                                            onClick={() => {
-                                                if (confirm(`Apakah Anda yakin ingin menghapus ruangan "${item.name}"?`)) {
-                                                    deleteRoomMutation.mutate(item.id);
-                                                }
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                setDeleteConfirm({
+                                                    show: true,
+                                                    id: item.id,
+                                                    name: item.name,
+                                                    type: 'room'
+                                                });
                                             }}
                                             className="p-1.5 text-slate-400 hover:text-accent-rose hover:bg-accent-rose/10 rounded transition-colors"
-                                            title="Hapus Ruangan"
+                                            title="Arsipkan Ruangan"
                                         >
                                             <Trash2 size={16} />
                                         </button>
@@ -904,6 +946,15 @@ export const MasterDataPage = () => {
                                 {/* Form Inventory */}
                                 {activeTab === 'inventory' && (
                                     <>
+                                        {editingItem && (editingItem as any).is_validated === false && (
+                                            <div className="p-3 bg-accent-amber/5 border border-accent-amber/20 rounded-2xl flex gap-3 items-start mb-4">
+                                                <AlertTriangle className="text-accent-amber" size={18} />
+                                                <div>
+                                                    <p className="text-xs font-bold text-accent-amber uppercase tracking-tight">Data Belum Tervalidasi</p>
+                                                    <p className="text-[10px] text-slate-500 mt-0.5">Lengkapi data dan simpan untuk mendaftarkan alat ini secara resmi ke Master Data.</p>
+                                                </div>
+                                            </div>
+                                        )}
                                         <div className="space-y-1.5">
                                             <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest pl-1">Nama Set / Alat</label>
                                             <Input
@@ -1010,22 +1061,13 @@ export const MasterDataPage = () => {
                                                 </select>
                                             </div>
                                         </div>
-                                        <div className="grid grid-cols-2 gap-4">
+                                        <div className="grid grid-cols-1 gap-4">
                                             <div className="space-y-1.5">
-                                                <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest pl-1">Username</label>
+                                                <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest pl-1">Email (Username)</label>
                                                 <Input
-                                                    placeholder="username.staff"
+                                                    placeholder="email@rsmenur.go.id"
                                                     value={formData.username}
                                                     onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                                                />
-                                            </div>
-                                            <div className="space-y-1.5">
-                                                <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest pl-1">Password</label>
-                                                <Input
-                                                    type="text"
-                                                    placeholder="password123"
-                                                    value={formData.password}
-                                                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                                                 />
                                             </div>
                                         </div>
@@ -1103,85 +1145,128 @@ export const MasterDataPage = () => {
                 )
             }
 
-            {/* Credentials Modal */}
-            {
-                credentialsModal.isOpen && credentialsModal.staff && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-                        <Card className="w-full max-w-md">
+            {/* Invite Link Modal */}
+            {isInviteModalOpen && inviteLink && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                    <Card className="w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-300">
+                        <div className="relative h-32 bg-gradient-to-br from-accent-indigo via-accent-purple to-accent-pink flex items-center justify-center overflow-hidden">
+                            <div className="absolute inset-0 bg-white/10 backdrop-blur-[2px]"></div>
+                            <div className="relative p-4 bg-white/20 rounded-full border border-white/30 shadow-2xl">
+                                <LinkIcon className="text-white" size={32} />
+                            </div>
+                        </div>
+
+                        <div className="p-8">
                             <div className="flex justify-between items-center mb-6">
-                                <h3 className="text-xl font-black text-slate-900">Kredensial Login</h3>
-                                <button onClick={() => setCredentialsModal({ isOpen: false, staff: null })} className="text-slate-400 hover:text-slate-600">
+                                <div>
+                                    <h3 className="text-xl font-black text-slate-900 tracking-tight">Link Undangan Siap!</h3>
+                                    <p className="text-xs text-slate-500 font-medium">Link ini akan kadaluarsa dalam 48 jam.</p>
+                                </div>
+                                <button
+                                    onClick={() => {
+                                        setIsInviteModalOpen(false);
+                                        setInviteLink(null);
+                                    }}
+                                    className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400 hover:text-slate-600"
+                                >
                                     <X size={20} />
                                 </button>
                             </div>
 
-                            <div className="space-y-4">
-                                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                                    <p className="text-[10px] uppercase font-black text-slate-400 tracking-widest mb-2">Nama Staff</p>
-                                    <p className="text-lg font-bold text-slate-900">{credentialsModal.staff.name}</p>
+                            <div className="space-y-6">
+                                <div className="p-5 bg-slate-50 rounded-3xl border border-slate-100 relative group">
+                                    <p className="text-[10px] uppercase font-black text-slate-400 tracking-widest mb-3 pl-1">Salin Link Di Bawah</p>
+                                    <div className="flex items-center gap-3 bg-white p-3 rounded-2xl border border-slate-200 shadow-sm group-hover:border-accent-indigo/30 transition-all">
+                                        <div className="flex-1 overflow-hidden">
+                                            <p className="text-sm font-mono font-medium text-slate-600 truncate">
+                                                {inviteLink}
+                                            </p>
+                                        </div>
+                                        <button
+                                            onClick={() => {
+                                                navigator.clipboard.writeText(inviteLink);
+                                                setCopied(true);
+                                                toast.success('Link disalin ke clipboard!');
+                                                setTimeout(() => setCopied(false), 2000);
+                                            }}
+                                            className={cn(
+                                                "p-2.5 rounded-xl transition-all duration-300",
+                                                copied
+                                                    ? "bg-emerald-500 text-white shadow-lg shadow-emerald-200"
+                                                    : "bg-slate-100 text-slate-600 hover:bg-accent-indigo hover:text-white"
+                                            )}
+                                        >
+                                            {copied ? <Check size={18} /> : <Copy size={18} />}
+                                        </button>
+                                    </div>
                                 </div>
 
-                                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                                    <p className="text-[10px] uppercase font-black text-slate-400 tracking-widest mb-2">Username</p>
-                                    <p className="text-lg font-mono font-bold text-slate-900">
-                                        {credentialsModal.staff.username || 'Belum diatur'}
-                                    </p>
-                                </div>
-
-                                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                                    <p className="text-[10px] uppercase font-black text-slate-400 tracking-widest mb-2">Password</p>
-                                    <p className="text-lg font-mono font-bold text-slate-900">
-                                        {credentialsModal.staff.password || 'Belum diatur'}
-                                    </p>
-                                </div>
-
-                                <div className="p-3 bg-accent-amber/10 border border-accent-amber/20 rounded-xl flex gap-2">
-                                    <div className="text-accent-amber mt-0.5">⚠️</div>
-                                    <p className="text-xs text-slate-600">
-                                        Simpan kredensial ini dengan aman. Dalam produksi, password akan di-hash untuk keamanan.
+                                <div className="p-4 bg-accent-indigo/5 border border-accent-indigo/10 rounded-2xl flex gap-3">
+                                    <div className="mt-0.5 text-accent-indigo">
+                                        <Info size={16} />
+                                    </div>
+                                    <p className="text-xs text-slate-600 leading-relaxed font-medium">
+                                        Berikan link ini kepada staff terkait. Setelah mereka mendaftar dan mengatur password, link ini tidak dapat digunakan lagi.
                                     </p>
                                 </div>
                             </div>
 
-                            <div className="mt-6 flex gap-3">
+                            <div className="mt-8">
+                                <Button
+                                    onClick={() => {
+                                        setIsInviteModalOpen(false);
+                                        setInviteLink(null);
+                                    }}
+                                    className="w-full py-4 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-accent-indigo/20"
+                                >
+                                    Selesai
+                                </Button>
+                            </div>
+                        </div>
+                    </Card>
+                </div>
+            )}
+            {/* Delete Confirmation Modal */}
+            {deleteConfirm.show && (
+                <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+                    <Card className="w-full max-w-sm shadow-2xl animate-in zoom-in-95 duration-200 p-8">
+                        <div className="flex flex-col items-center text-center space-y-4">
+                            <div className="w-16 h-16 rounded-full bg-accent-rose/10 flex items-center justify-center text-accent-rose">
+                                <Trash2 size={32} />
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-black text-slate-900">Konfirmasi Arsip</h3>
+                                <p className="text-sm text-slate-500 mt-2">
+                                    Apakah Anda yakin ingin mengarsipkan <strong>{deleteConfirm.name}</strong>? Data ini akan disembunyikan namun riwayatnya tetap tersimpan.
+                                </p>
+                            </div>
+                            <div className="flex gap-3 w-full pt-4">
                                 <Button
                                     variant="secondary"
                                     className="flex-1"
-                                    onClick={() => {
-                                        const st = credentialsModal.staff;
-                                        setEditingItem(st);
-                                        setFormData({
-                                            name: st.name,
-                                            barcode: '',
-                                            category: MASTER_DATA.CATEGORIES[0],
-                                            quantity: 1,
-                                            employeeId: st.employeeId,
-                                            department: st.department,
-                                            role: st.role,
-                                            username: st.username || '',
-                                            password: st.password || '',
-                                            type: 'washer',
-                                            picId: st.picId || '',
-                                            default_sterilization_method: MASTER_DATA.STERILIZATION_PROGRAMS[0].name
-                                        });
-                                        setCredentialsModal({ isOpen: false, staff: null });
-                                        setIsModalOpen(true);
-                                    }}
+                                    onClick={() => setDeleteConfirm({ ...deleteConfirm, show: false })}
+                                    disabled={deleteStaffMutation.isPending || deleteToolMutation.isPending || deleteMachineMutation.isPending || deleteRoomMutation.isPending}
                                 >
-                                    <Edit2 size={14} className="mr-2" />
-                                    Edit Kredensial
+                                    Batal
                                 </Button>
                                 <Button
-                                    className="flex-1"
-                                    onClick={() => setCredentialsModal({ isOpen: false, staff: null })}
+                                    className="flex-1 bg-accent-rose hover:bg-accent-rose/90 text-white border-none shadow-lg shadow-accent-rose/20"
+                                    onClick={() => {
+                                        if (deleteConfirm.type === 'staff') deleteStaffMutation.mutate(deleteConfirm.id);
+                                        else if (deleteConfirm.type === 'inventory') deleteToolMutation.mutate(deleteConfirm.id);
+                                        else if (deleteConfirm.type === 'machine') deleteMachineMutation.mutate(deleteConfirm.id);
+                                        else if (deleteConfirm.type === 'room') deleteRoomMutation.mutate(deleteConfirm.id);
+                                        setDeleteConfirm({ ...deleteConfirm, show: false });
+                                    }}
+                                    disabled={deleteStaffMutation.isPending || deleteToolMutation.isPending || deleteMachineMutation.isPending || deleteRoomMutation.isPending}
                                 >
-                                    Tutup
+                                    {deleteStaffMutation.isPending || deleteToolMutation.isPending || deleteMachineMutation.isPending || deleteRoomMutation.isPending ? 'Mengarsipkan...' : 'Ya, Arsipkan'}
                                 </Button>
                             </div>
-                        </Card>
-                    </div >
-                )
-            }
+                        </div>
+                    </Card>
+                </div>
+            )}
         </div >
     );
 };

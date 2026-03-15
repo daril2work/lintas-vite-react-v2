@@ -15,6 +15,8 @@ import { WardReceivePage } from './pages/WardReceivePage';
 import { WardRequestPage } from './pages/WardRequestPage';
 import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
+import { ResetPasswordPage } from './pages/ResetPasswordPage';
+import SignupStaffPage from './pages/SignupStaffPage';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ConfigProvider } from './context/ConfigContext';
 import { Toaster } from 'sonner';
@@ -43,6 +45,8 @@ function App() {
           <Routes>
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
+            <Route path="/signup" element={<SignupStaffPage />} />
 
             <Route element={<MainLayout />}>
               <Route path="/dashboard" element={<ProtectedRoute allowedRoles={['admin']}><DashboardPage /></ProtectedRoute>} />

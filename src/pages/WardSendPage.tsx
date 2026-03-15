@@ -4,7 +4,7 @@ import { api } from '../services/api';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
-import { Box, Send, PackageSearch, Trash2, Camera, AlertTriangle } from 'lucide-react';
+import { Box, Send, PackageSearch, Trash2, Camera, AlertTriangle, Plus, X } from 'lucide-react';
 import { cn } from '../utils/cn';
 import type { ToolSet } from '../types';
 import { useAuth } from '../context/AuthContext';
@@ -28,6 +28,9 @@ export const WardSendPage = () => {
     const [selectedRoomId, setSelectedRoomId] = useState('');
     const [search, setSearch] = useState('');
     const [basket, setBasket] = useState<SendBasketItem[]>([]);
+    const [isTempModalOpen, setIsTempModalOpen] = useState(false);
+    const [tempName, setTempName] = useState('');
+    const [tempCategory, setTempCategory] = useState('');
 
     // Set initial room
     useEffect(() => {
@@ -62,6 +65,21 @@ export const WardSendPage = () => {
         },
         onError: () => {
             toast.error('Gagal mengirim alat ke CSSD');
+        }
+    });
+
+    const createTempMutation = useMutation({
+        mutationFn: api.createTemporaryTool,
+        onSuccess: (newTool) => {
+            queryClient.invalidateQueries({ queryKey: ['inventory'] });
+            addToBasket(newTool);
+            setIsTempModalOpen(false);
+            setTempName('');
+            setTempCategory('');
+            toast.success('Alat sementara berhasil dibuat & masuk keranjang');
+        },
+        onError: (error: any) => {
+            toast.error('Gagal membuat alat sementara: ' + (error.message || 'Error'));
         }
     });
 
@@ -129,7 +147,18 @@ export const WardSendPage = () => {
                     </Card>
 
                     <div className="space-y-4">
-                        <h4 className="text-xs font-bold uppercase tracking-widest text-slate-400">Daftar Inventaris Tersedia</h4>
+                        <div className="flex items-center justify-between">
+                            <h4 className="text-xs font-bold uppercase tracking-widest text-slate-400">Daftar Inventaris Tersedia</h4>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 text-[10px] gap-1.5 text-accent-indigo hover:text-accent-indigo hover:bg-accent-indigo/10 border border-accent-indigo/20"
+                                onClick={() => setIsTempModalOpen(true)}
+                            >
+                                <Plus size={12} />
+                                Alat Belum Terdaftar?
+                            </Button>
+                        </div>
                         <div className="grid grid-cols-1 gap-4">
                             {isLoading ? (
                                 [1, 2, 3].map(i => <div key={i} className="h-24 bg-slate-100 rounded-3xl animate-pulse" />)
@@ -231,6 +260,58 @@ export const WardSendPage = () => {
                     </Card>
                 </div>
             </div>
+
+            {/* Modal Alat Sementara */}
+            {isTempModalOpen && (
+                <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <Card className="w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200">
+                        <div className="flex items-center justify-between mb-6">
+                            <div>
+                                <h3 className="text-lg font-black text-slate-900">Alat Belum Terdaftar</h3>
+                                <p className="text-[10px] text-slate-500 mt-1 uppercase tracking-widest font-bold">Input sementara untuk pengiriman urgent</p>
+                            </div>
+                            <button onClick={() => setIsTempModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400">
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <div className="space-y-4">
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nama Alat/Set</label>
+                                <Input
+                                    placeholder="Contoh: Set Minor Baru (Dr. Anas)"
+                                    value={tempName}
+                                    onChange={(e) => setTempName(e.target.value)}
+                                    autoFocus
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Kategori (Opsional)</label>
+                                <Input
+                                    placeholder="Contoh: Bedah Umum"
+                                    value={tempCategory}
+                                    onChange={(e) => setTempCategory(e.target.value)}
+                                />
+                            </div>
+
+                            <div className="pt-4 flex gap-3">
+                                <Button variant="secondary" className="flex-1" onClick={() => setIsTempModalOpen(false)}>Batal</Button>
+                                <Button
+                                    className="flex-1 bg-accent-indigo hover:bg-indigo-600 text-white"
+                                    disabled={!tempName || createTempMutation.isPending}
+                                    onClick={() => createTempMutation.mutate({
+                                        name: tempName,
+                                        room_id: selectedRoomId,
+                                        category: tempCategory
+                                    })}
+                                >
+                                    {createTempMutation.isPending ? 'Proses...' : 'Buat & Tambah'}
+                                </Button>
+                            </div>
+                        </div>
+                    </Card>
+                </div>
+            )}
         </div>
     );
 };

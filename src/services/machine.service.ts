@@ -19,7 +19,7 @@ export const MACHINE_DATA = {
 export const machineService = {
     // Machines
     getMachines: async (): Promise<Machine[]> => {
-        const { data, error } = await supabase.from('machines').select('*').order('name');
+        const { data, error } = await supabase.from('machines').select('*').eq('is_active', true).order('name');
         if (error) throw error;
         return data.map((m: any) => ({
             id: m.id,
@@ -49,7 +49,7 @@ export const machineService = {
     },
 
     deleteMachine: async (id: string): Promise<void> => {
-        const { error } = await supabase.from('machines').delete().eq('id', id);
+        const { error } = await supabase.from('machines').update({ is_active: false }).eq('id', id);
         if (error) throw error;
     },
 
