@@ -137,13 +137,14 @@ export const ReportsPage = () => {
             title = 'Bowie Dick Test Record';
             doc.text(title, 14, 20);
             if (startDate || endDate) doc.text(`Periode: ${startDate || 'Awal'} - ${endDate || 'Sekarang'}`, 14, 28);
-            head = [['Waktu', 'Mesin', 'Hasil', 'Suhu/Tekanan', 'Operator']];
+            head = [['Waktu', 'Mesin', 'Shift/Prog', 'Siklus/Lama', 'Hasil', 'Status File']];
             body = filteredBdLogs.map(l => [
                 new Date(l.timestamp).toLocaleString('id-ID'),
                 machines.find(m => m.id === l.machineId)?.name || '-',
+                `${l.shift || '-'} / ${l.program || '-'}`,
+                `Siklus ${l.siklus_mesin || '-'} (${l.lama_steril || '0'}m)`,
                 l.result.toUpperCase(),
-                `${l.temperature}°C / ${l.pressure} Bar`,
-                l.operator_name
+                l.proof_file_url ? 'Terlampir' : 'Tidak Ada'
             ]);
         } else if (activeTab === 'distribution') {
             title = 'Distribution Log';
@@ -412,11 +413,10 @@ export const ReportsPage = () => {
                                     )}
                                     {activeTab === 'bowie-dick' && (
                                         <>
-                                            <th className="px-8 py-5">Mesin</th>
-                                            <th className="px-8 py-5">Suhu / Tekanan</th>
-                                            <th className="px-8 py-5">Waktu Tahan</th>
-                                            <th className="px-8 py-5">Hasil</th>
-                                            <th className="px-8 py-5">Operator</th>
+                                            <th className="px-8 py-5">Mesin & Shift</th>
+                                            <th className="px-8 py-5">Siklus & Waktu</th>
+                                            <th className="px-8 py-5">Hasil & Operator</th>
+                                            <th className="px-8 py-5 text-center">Dokumen</th>
                                         </>
                                     )}
                                     {activeTab === 'distribution' && (
@@ -451,24 +451,40 @@ export const ReportsPage = () => {
                                     bowieDickLogs.map((l, i) => (
                                         <tr key={i} className="text-xs hover:bg-slate-50 transition-colors">
                                             <td className="px-8 py-4 font-bold text-slate-400">{new Date(l.timestamp).toLocaleString('id-ID')}</td>
-                                            <td className="px-8 py-4 font-black text-slate-700">{machines.find(m => m.id === l.machineId)?.name || '-'}</td>
                                             <td className="px-8 py-4">
-                                                <div className="flex gap-2 font-mono text-accent-indigo font-bold">
-                                                    <span>{l.temperature}°C</span>
-                                                    <span className="text-slate-200">/</span>
-                                                    <span>{l.pressure} Bar</span>
+                                                <p className="font-black text-slate-700">{machines.find(m => m.id === l.machineId)?.name || '-'}</p>
+                                                <p className="text-[10px] font-bold text-slate-400">Shift: {l.shift || '-'}, Prog: {l.program || '-'}</p>
+                                            </td>
+                                            <td className="px-8 py-4">
+                                                <p className="font-bold text-slate-600">Siklus {l.siklus_mesin || '-'}</p>
+                                                <p className="text-[10px] text-slate-400 font-medium">Mulai: {l.jam_start || '-'} | Lama: {l.lama_steril || '0'}m</p>
+                                            </td>
+                                            <td className="px-8 py-4">
+                                                <div className="flex flex-col items-start gap-1">
+                                                    <span className={cn(
+                                                        "px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider",
+                                                        l.result === 'passed' ? "bg-accent-emerald text-white shadow-sm" : "bg-accent-rose text-white shadow-sm"
+                                                    )}>
+                                                        {l.result}
+                                                    </span>
+                                                    <span className="text-[10px] font-bold text-slate-400 mt-1">{l.operator_name}</span>
                                                 </div>
                                             </td>
-                                            <td className="px-8 py-4 font-bold text-slate-500">{l.holding_time}m</td>
-                                            <td className="px-8 py-4">
-                                                <span className={cn(
-                                                    "px-3 py-1 rounded-full text-[9px] font-black uppercase",
-                                                    l.result === 'passed' ? "bg-accent-emerald text-white shadow-lg shadow-accent-emerald/20" : "bg-accent-rose text-white shadow-lg shadow-accent-rose/20"
-                                                )}>
-                                                    {l.result}
-                                                </span>
+                                            <td className="px-8 py-4 text-center">
+                                                {l.proof_file_url ? (
+                                                    <a
+                                                        href={l.proof_file_url}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-accent-indigo/10 text-accent-indigo hover:bg-accent-indigo hover:text-white transition-colors"
+                                                        title="Download / View Dokumen"
+                                                    >
+                                                        <Download size={14} />
+                                                    </a>
+                                                ) : (
+                                                    <span className="text-[10px] italic text-slate-300">-</span>
+                                                )}
                                             </td>
-                                            <td className="px-8 py-4 font-bold text-slate-600">{l.operator_name}</td>
                                         </tr>
                                     ))
                                 }

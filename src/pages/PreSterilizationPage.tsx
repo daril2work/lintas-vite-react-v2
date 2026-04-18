@@ -13,7 +13,10 @@ import {
     CheckCircle2,
     XCircle,
     AlertCircle,
-    ShieldCheck
+    ShieldCheck,
+    UploadCloud,
+    FileText,
+    X
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { useAuth } from '../context/AuthContext';
@@ -23,12 +26,19 @@ export const PreSterilizationPage = () => {
     const { user } = useAuth();
     const queryClient = useQueryClient();
     const [selectedMachineId, setSelectedMachineId] = useState<string | null>(null);
+    const [proofFile, setProofFile] = useState<File | null>(null);
     const [formData, setFormData] = useState({
-        temperature: 134,
-        pressure: 2.1,
-        holding_time: 3.5,
-        result: 'passed',
-        notes: ''
+        shift: 'Pagi',
+        program: 'Pagi',
+        siklus_mesin: 1,
+        jam_start: '',
+        waktu_steril: '',
+        waktu_end_steril: '',
+        lama_steril: 0,
+        lama_proses: 0,
+        sterilisasi: '',
+        indikator_shift: 'Pagi',
+        result: 'passed'
     });
 
     const { data: machines } = useQuery({ queryKey: ['machines'], queryFn: api.getMachines });
@@ -46,13 +56,19 @@ export const PreSterilizationPage = () => {
             // 1. Create Log Entry
             await api.createBowieDickLog({
                 machineId,
-                temperature: formData.temperature,
-                pressure: formData.pressure,
-                holding_time: Math.round(formData.holding_time * 60), // Store in seconds if needed, or minutes. Log uses Integer. I'll use minutes.
+                shift: formData.shift,
+                program: formData.program,
+                siklus_mesin: formData.siklus_mesin,
+                jam_start: formData.jam_start,
+                waktu_steril: formData.waktu_steril,
+                waktu_end_steril: formData.waktu_end_steril,
+                lama_steril: formData.lama_steril,
+                lama_proses: formData.lama_proses,
+                sterilisasi: formData.sterilisasi,
+                indikator_shift: formData.indikator_shift,
                 result: formData.result,
                 operator_name: user?.name || 'Operator',
-                notes: formData.notes
-            });
+            }, proofFile);
 
             // 2. Approve Machine if passed
             if (formData.result === 'passed') {
@@ -63,6 +79,7 @@ export const PreSterilizationPage = () => {
             }
         },
         onSuccess: () => {
+            setProofFile(null);
             queryClient.invalidateQueries({ queryKey: ['machines'] });
             toast.success('Bowie Dick Test Berhasil Dicatat', {
                 description: formData.result === 'passed' ? 'Mesin sekarang siap digunakan.' : 'Mesin telah ditandai bermasalah.'
@@ -305,67 +322,96 @@ export const PreSterilizationPage = () => {
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-2">
                                 <div className="space-y-6">
-                                    <div className="space-y-4">
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-2 text-slate-600">
-                                                <Thermometer size={16} className="text-rose-500" />
-                                                <label className="text-xs font-black uppercase tracking-widest italic">Temperature (°C)</label>
-                                            </div>
-                                            <span className="text-xs font-black text-slate-900 bg-slate-100 px-2 py-1 rounded-md">{formData.temperature}°C</span>
+                                    <h3 className="text-sm font-black uppercase tracking-widest text-slate-800 border-b-2 border-slate-100 pb-2">Proses Sterilisasi</h3>
+                                    
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-black uppercase tracking-widest text-slate-500">Shift</label>
+                                            <select 
+                                                className="w-full p-3 rounded-xl border-2 border-slate-100 bg-slate-50 font-bold text-sm text-slate-700 focus:border-accent-indigo focus:ring-2 focus:ring-accent-indigo/20 outline-none"
+                                                value={formData.shift}
+                                                onChange={(e) => setFormData({ ...formData, shift: e.target.value })}
+                                            >
+                                                <option value="Pagi">Pagi</option>
+                                                <option value="Siang">Siang</option>
+                                                <option value="Malam">Malam</option>
+                                            </select>
                                         </div>
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-black uppercase tracking-widest text-slate-500">Program</label>
+                                            <select 
+                                                className="w-full p-3 rounded-xl border-2 border-slate-100 bg-slate-50 font-bold text-sm text-slate-700 focus:border-accent-indigo focus:ring-2 focus:ring-accent-indigo/20 outline-none"
+                                                value={formData.program}
+                                                onChange={(e) => setFormData({ ...formData, program: e.target.value })}
+                                            >
+                                                <option value="Pagi">Pagi</option>
+                                                <option value="Siang">Siang</option>
+                                                <option value="Malam">Malam</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-black uppercase tracking-widest text-slate-500">Siklus Mesin</label>
                                         <input
-                                            type="range"
-                                            min="100"
-                                            max="140"
-                                            step="0.5"
-                                            className="w-full accent-rose-500"
-                                            value={formData.temperature}
-                                            onChange={(e) => setFormData({ ...formData, temperature: parseFloat(e.target.value) })}
+                                            type="number"
+                                            className="w-full p-3 rounded-xl border-2 border-slate-100 bg-slate-50 font-bold text-sm text-slate-700 focus:border-accent-indigo focus:ring-2 focus:ring-accent-indigo/20 outline-none"
+                                            placeholder="Contoh: 1"
+                                            value={formData.siklus_mesin || ''}
+                                            onChange={(e) => setFormData({ ...formData, siklus_mesin: parseInt(e.target.value) || 0 })}
                                         />
                                     </div>
 
-                                    <div className="space-y-4">
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-2 text-slate-600">
-                                                <Activity size={16} className="text-accent-indigo" />
-                                                <label className="text-xs font-black uppercase tracking-widest italic">Pressure (Bar)</label>
-                                            </div>
-                                            <span className="text-xs font-black text-slate-900 bg-slate-100 px-2 py-1 rounded-md">{formData.pressure} Bar</span>
+                                    <div className="grid grid-cols-3 gap-2">
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Jam Start</label>
+                                            <input type="time" className="w-full p-2.5 rounded-xl border-2 border-slate-100 bg-slate-50 font-bold text-sm" value={formData.jam_start} onChange={(e) => setFormData({ ...formData, jam_start: e.target.value })} />
                                         </div>
-                                        <input
-                                            type="range"
-                                            min="0"
-                                            max="3.5"
-                                            step="0.1"
-                                            className="w-full accent-accent-indigo"
-                                            value={formData.pressure}
-                                            onChange={(e) => setFormData({ ...formData, pressure: parseFloat(e.target.value) })}
-                                        />
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Waktu Steril</label>
+                                            <input type="time" className="w-full p-2.5 rounded-xl border-2 border-slate-100 bg-slate-50 font-bold text-sm" value={formData.waktu_steril} onChange={(e) => setFormData({ ...formData, waktu_steril: e.target.value })} />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Waktu End</label>
+                                            <input type="time" className="w-full p-2.5 rounded-xl border-2 border-slate-100 bg-slate-50 font-bold text-sm" value={formData.waktu_end_steril} onChange={(e) => setFormData({ ...formData, waktu_end_steril: e.target.value })} />
+                                        </div>
                                     </div>
 
-                                    <div className="space-y-4">
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-2 text-slate-600">
-                                                <Timer size={16} className="text-accent-amber" />
-                                                <label className="text-xs font-black uppercase tracking-widest italic">Holding Time (Min)</label>
-                                            </div>
-                                            <span className="text-xs font-black text-slate-900 bg-slate-100 px-2 py-1 rounded-md">{formData.holding_time} Menit</span>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-black uppercase tracking-widest text-slate-500">Lama Steril (Menit)</label>
+                                            <input type="number" className="w-full p-3 rounded-xl border-2 border-slate-100 bg-slate-50 font-bold text-sm" value={formData.lama_steril || ''} onChange={(e) => setFormData({ ...formData, lama_steril: parseInt(e.target.value) || 0 })} />
                                         </div>
-                                        <input
-                                            type="range"
-                                            min="1"
-                                            max="10"
-                                            step="0.5"
-                                            className="w-full accent-accent-amber"
-                                            value={formData.holding_time}
-                                            onChange={(e) => setFormData({ ...formData, holding_time: parseFloat(e.target.value) })}
-                                        />
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-black uppercase tracking-widest text-slate-500">Lama Proses (Menit)</label>
+                                            <input type="number" className="w-full p-3 rounded-xl border-2 border-slate-100 bg-slate-50 font-bold text-sm" value={formData.lama_proses || ''} onChange={(e) => setFormData({ ...formData, lama_proses: parseInt(e.target.value) || 0 })} />
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-black uppercase tracking-widest text-slate-500">Sterilisasi</label>
+                                        <input type="text" className="w-full p-3 rounded-xl border-2 border-slate-100 bg-slate-50 font-bold text-sm" placeholder="Keterangan..." value={formData.sterilisasi} onChange={(e) => setFormData({ ...formData, sterilisasi: e.target.value })} />
                                     </div>
                                 </div>
 
                                 <div className="space-y-6">
+                                    <h3 className="text-sm font-black uppercase tracking-widest text-slate-800 border-b-2 border-slate-100 pb-2">Hasil Indikator</h3>
+
                                     <div className="space-y-2">
-                                        <label className="text-xs font-black uppercase tracking-widest text-slate-500">Hasil Indikator</label>
+                                        <label className="text-xs font-black uppercase tracking-widest text-slate-500">Shift Indikator</label>
+                                        <select 
+                                            className="w-full p-3 rounded-xl border-2 border-slate-100 bg-slate-50 font-bold text-sm text-slate-700 focus:border-accent-indigo focus:ring-2 focus:ring-accent-indigo/20 outline-none"
+                                            value={formData.indikator_shift}
+                                            onChange={(e) => setFormData({ ...formData, indikator_shift: e.target.value })}
+                                        >
+                                            <option value="Pagi">Pagi</option>
+                                            <option value="Siang">Siang</option>
+                                            <option value="Malam">Malam</option>
+                                        </select>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-black uppercase tracking-widest text-slate-500">Status Indikator</label>
                                         <div className="grid grid-cols-2 gap-3">
                                             <button
                                                 className={cn(
@@ -391,13 +437,48 @@ export const PreSterilizationPage = () => {
                                     </div>
 
                                     <div className="space-y-2">
-                                        <label className="text-xs font-black uppercase tracking-widest text-slate-500">Catatan Tambahan</label>
-                                        <textarea
-                                            className="w-full h-24 p-4 rounded-2xl border-2 border-slate-100 focus:border-accent-indigo focus:ring-4 focus:ring-accent-indigo/5 bg-slate-50/50 resize-none text-sm transition-all"
-                                            placeholder="Tuliskan catatan teknis jika ada..."
-                                            value={formData.notes}
-                                            onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                                        />
+                                        <label className="text-xs font-black uppercase tracking-widest text-slate-500">Upload Form Fisik</label>
+                                        {!proofFile ? (
+                                            <div className="w-full relative group">
+                                                <input 
+                                                    type="file" 
+                                                    accept="image/jpeg,image/png,application/pdf"
+                                                    onChange={(e) => {
+                                                        const file = e.target.files?.[0];
+                                                        if (!file) return;
+                                                        if (file.size > 500 * 1024) {
+                                                            toast.error('Ukuran file terlalu besar', { description: 'Maksimal ukuran file adalah 500 KB' });
+                                                            return;
+                                                        }
+                                                        setProofFile(file);
+                                                    }}
+                                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                                />
+                                                <div className="flex flex-col items-center justify-center w-full min-h-[120px] p-6 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/50 group-hover:border-accent-indigo group-hover:bg-accent-indigo/5 transition-all">
+                                                    <UploadCloud className="w-8 h-8 text-slate-400 group-hover:text-accent-indigo mb-2 transition-colors" />
+                                                    <p className="text-xs font-bold text-slate-600">Klik atau Drag form ke sini</p>
+                                                    <p className="text-[10px] text-slate-400 mt-1 uppercase tracking-wider font-medium">Max 500 KB (JPG, PNG, PDF)</p>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-center justify-between p-4 rounded-2xl border-2 border-accent-indigo/20 bg-accent-indigo/5 transition-all">
+                                                <div className="flex items-center gap-3 overflow-hidden">
+                                                    <div className="p-2 bg-white rounded-lg shadow-sm">
+                                                        <FileText className="w-6 h-6 text-accent-indigo" />
+                                                    </div>
+                                                    <div className="truncate">
+                                                        <p className="text-sm font-bold text-slate-700 truncate">{proofFile.name}</p>
+                                                        <p className="text-xs text-slate-500 font-medium">{(proofFile.size / 1024).toFixed(1)} KB</p>
+                                                    </div>
+                                                </div>
+                                                <button 
+                                                    onClick={() => setProofFile(null)}
+                                                    className="p-2 hover:bg-white rounded-full transition-colors text-slate-400 hover:text-rose-500 flex-shrink-0"
+                                                >
+                                                    <X className="w-5 h-5" />
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>
