@@ -13,6 +13,9 @@ import { ReportsPage } from './pages/ReportsPage';
 import { WardSendPage } from './pages/WardSendPage';
 import { WardReceivePage } from './pages/WardReceivePage';
 import { WardRequestPage } from './pages/WardRequestPage';
+import { WardScheduleEntryPage } from './pages/WardScheduleEntryPage';
+import { ScheduleDashboardPage } from './pages/ScheduleDashboardPage';
+import { PostSterilizationPage } from './pages/PostSterilizationPage';
 import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
@@ -56,10 +59,13 @@ function App() {
               <Route path="/sterilizing" element={<ProtectedRoute allowedRoles={['admin', 'operator_cssd']}><SterilizingPage /></ProtectedRoute>} />
               <Route path="/storage" element={<ProtectedRoute allowedRoles={['admin', 'operator_cssd']}><StoragePage /></ProtectedRoute>} />
               <Route path="/pre-sterilization" element={<ProtectedRoute allowedRoles={['admin', 'operator_cssd']}><PreSterilizationPage /></ProtectedRoute>} />
+              <Route path="/post-sterilization" element={<ProtectedRoute allowedRoles={['admin', 'operator_cssd']}><PostSterilizationPage /></ProtectedRoute>} />
               <Route path="/distribution" element={<ProtectedRoute allowedRoles={['admin', 'operator_cssd']}><DistributionPage /></ProtectedRoute>} />
               <Route path="/ward/send" element={<ProtectedRoute allowedRoles={['admin', 'operator_ruangan']}><WardSendPage /></ProtectedRoute>} />
               <Route path="/ward/receive" element={<ProtectedRoute allowedRoles={['admin', 'operator_ruangan']}><WardReceivePage /></ProtectedRoute>} />
               <Route path="/ward/request" element={<ProtectedRoute allowedRoles={['admin', 'operator_ruangan']}><WardRequestPage /></ProtectedRoute>} />
+              <Route path="/ward/schedule/entry" element={<ProtectedRoute allowedRoles={['admin', 'operator_ruangan']}><WardScheduleEntryPage /></ProtectedRoute>} />
+              <Route path="/schedule/dashboard" element={<ProtectedRoute allowedRoles={['admin', 'operator_ruangan']}><ScheduleDashboardPage /></ProtectedRoute>} />
               <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><MasterDataPage /></ProtectedRoute>} />
               <Route path="/reports" element={<ProtectedRoute allowedRoles={['admin']}><ReportsPage /></ProtectedRoute>} />
             </Route>

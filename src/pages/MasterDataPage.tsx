@@ -4,9 +4,13 @@ import { api, MASTER_DATA } from '../services/api';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
-import { Users, Database, Settings, PackageCheck, Plus, Search, Edit2, Trash2, Box, Info, X, Copy, Check, Link as LinkIcon, ChevronRight, AlertTriangle } from 'lucide-react';
+import { Users, Database, Settings, PackageCheck, Plus, Search, Trash2, Info, X, Copy, Check, Link as LinkIcon, ChevronRight, AlertTriangle } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { toast } from 'sonner';
+import { StaffTab } from './master-data/components/StaffTab';
+import { InventoryTab } from './master-data/components/InventoryTab';
+import { MachineTab } from './master-data/components/MachineTab';
+import { RoomTab } from './master-data/components/RoomTab';
 
 type TabType = 'staff' | 'inventory' | 'machines' | 'rooms';
 
@@ -59,23 +63,7 @@ export const MasterDataPage = () => {
     const { data: rooms } = useQuery({ queryKey: ['rooms'], queryFn: api.getRooms });
 
     // Group inventory by name
-    const groupedInventory = inventory?.reduce((acc, item) => {
-        if (!acc[item.name]) {
-            acc[item.name] = {
-                name: item.name,
-                category: item.category,
-                total: 0,
-                available: 0,
-                items: []
-            };
-        }
-        acc[item.name].total += 1;
-        if (item.status === 'sterile') {
-            acc[item.name].available += 1;
-        }
-        acc[item.name].items.push(item);
-        return acc;
-    }, {} as Record<string, { name: string, category: string, total: number, available: number, items: typeof inventory }>) || {};
+
 
     const createToolMutation = useMutation({
         mutationFn: api.createToolSet,
@@ -410,33 +398,11 @@ export const MasterDataPage = () => {
     // Filter Logic
     const lowerQuery = (searchQuery || '').toLowerCase();
 
-    const filteredStaff = (staff || []).filter(s => {
-        if (!s) return false;
-        const name = String(s.name || '').toLowerCase();
-        const empId = String(s.employeeId || '').toLowerCase();
-        return name.includes(lowerQuery) || empId.includes(lowerQuery);
-    });
 
-    const filteredInventoryGroups = Object.values(groupedInventory).filter(g => {
-        if (!g) return false;
-        const name = String(g.name || '').toLowerCase();
-        const cat = String(g.category || '').toLowerCase();
-        return name.includes(lowerQuery) || cat.includes(lowerQuery);
-    });
 
-    const filteredMachines = (machines || []).filter(m => {
-        if (!m) return false;
-        const name = String(m.name || '').toLowerCase();
-        const type = String(m.type || '').toLowerCase();
-        return name.includes(lowerQuery) || type.includes(lowerQuery);
-    });
 
-    const filteredRooms = (rooms || []).filter(r => {
-        if (!r) return false;
-        const name = String(r.name || '').toLowerCase();
-        const pic = String(r.picName || '').toLowerCase();
-        return name.includes(lowerQuery) || pic.includes(lowerQuery);
-    });
+
+
 
     // ... (rest of the component)
 
@@ -534,331 +500,149 @@ export const MasterDataPage = () => {
                             )}
                         </thead>
                         <tbody className="divide-y divide-slate-50">
-                            {activeTab === 'staff' && filteredStaff.slice(currentPage * itemsPerPage, (currentPage + 1) * itemsPerPage).map(item => (
-                                <tr key={item.id} className="group hover:bg-slate-50/50 transition-colors">
-                                    <td className="px-8 py-5">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-full bg-accent-indigo/10 text-accent-indigo flex items-center justify-center font-bold text-xs uppercase">
-                                                {item.name?.charAt(0) || '?'}
-                                            </div>
-                                            <span className="font-bold text-slate-900">{item.name || 'Unnamed Staff'}</span>
-                                        </div>
-                                    </td>
-                                    <td className="px-8 py-5 text-sm text-slate-500 font-mono italic">{item.employeeId}</td>
-                                    <td className="px-8 py-5 text-sm text-slate-600">{item.department}</td>
-                                    <td className="px-8 py-5">
-                                        <span className="px-2 py-0.5 rounded-md bg-slate-100 text-[10px] font-black uppercase text-slate-500">
-                                            {item.role === 'operator_cssd' ? 'Operator CSSD' :
-                                                item.role === 'operator_ruangan' ? 'Operator Ruangan' :
-                                                    item.role}
-                                        </span>
-                                    </td>
-                                    <td className="px-8 py-5">
-                                        <span className="text-xs text-slate-400 italic">Auth via Email</span>
-                                    </td>
-                                    <td className="px-8 py-5 text-right flex justify-end gap-2">
-                                        <button
-                                            onClick={() => {
-                                                setEditingItem(item);
-                                                setFormData({
-                                                    name: item.name,
-                                                    barcode: '',
-                                                    category: MASTER_DATA.CATEGORIES[0],
-                                                    quantity: 1,
-                                                    employeeId: item.employeeId,
-                                                    department: item.department,
-                                                    role: item.role,
-                                                    username: item.username || '',
-                                                    type: 'washer',
-                                                    picId: '',
-                                                    default_sterilization_method: MASTER_DATA.STERILIZATION_PROGRAMS[0].name
-                                                });
-                                                setIsModalOpen(true);
-                                            }}
-                                            className="p-1.5 text-slate-400 hover:text-accent-indigo hover:bg-accent-indigo/10 rounded transition-colors"
-                                            title="Edit Staff"
-                                        >
-                                            <Edit2 size={16} />
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={(e) => {
-                                                e.preventDefault();
-                                                e.stopPropagation();
-                                                setDeleteConfirm({
-                                                    show: true,
-                                                    id: item.id,
-                                                    name: item.name,
-                                                    type: 'staff'
-                                                });
-                                            }}
-                                            className="p-1.5 text-slate-400 hover:text-accent-rose hover:bg-accent-rose/10 rounded transition-colors"
-                                            title="Arsipkan Staff"
-                                        >
-                                            <Trash2 size={16} />
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))}
+                            {activeTab === 'staff' && (
+                                <StaffTab
+                                    staff={staff || []}
+                                    searchQuery={searchQuery}
+                                    currentPage={currentPage}
+                                    itemsPerPage={itemsPerPage}
+                                    onEdit={(item) => {
+                                        setEditingItem(item);
+                                        setFormData({
+                                            name: item.name,
+                                            barcode: '',
+                                            category: MASTER_DATA.CATEGORIES[0],
+                                            quantity: 1,
+                                            employeeId: item.employeeId,
+                                            department: item.department,
+                                            role: item.role,
+                                            username: item.username || '',
+                                            type: 'washer',
+                                            picId: '',
+                                            default_sterilization_method: MASTER_DATA.STERILIZATION_PROGRAMS[0].name
+                                        });
+                                        setIsModalOpen(true);
+                                    }}
+                                    onDelete={(id, name) => {
+                                        setDeleteConfirm({
+                                            show: true,
+                                            id: id,
+                                            name: name,
+                                            type: 'staff'
+                                        });
+                                    }}
+                                />
+                            )}
 
-                            {activeTab === 'inventory' && filteredInventoryGroups.slice(currentPage * itemsPerPage, (currentPage + 1) * itemsPerPage).map((group: any) => (
-                                <>
-                                    <tr
-                                        key={group.name}
-                                        className={cn(
-                                            "group transition-colors cursor-pointer",
-                                            expandedGroup === group.name ? "bg-slate-50" : "hover:bg-slate-50/50"
-                                        )}
-                                        onClick={() => setExpandedGroup(expandedGroup === group.name ? null : group.name)}
-                                    >
-                                        <td className="px-8 py-5 font-bold text-slate-900 flex items-center gap-2">
-                                            <ChevronRight size={16} className={cn("text-slate-400 transition-transform", expandedGroup === group.name && "rotate-90")} />
-                                            {group.name}
-                                        </td>
-                                        <td className="px-8 py-5 text-sm text-slate-600">{group.category}</td>
-                                        <td className="px-8 py-5 text-center">
-                                            <div className="inline-flex items-center gap-2 px-3 py-1 bg-slate-100 rounded-full">
-                                                <Box size={14} className="text-slate-500" />
-                                                <span className="text-xs font-bold text-slate-700">{group.total} Unit</span>
-                                            </div>
-                                        </td>
-                                        <td className="px-8 py-5 text-center">
-                                            <div className="inline-flex items-center gap-2 px-3 py-1 bg-accent-emerald/10 rounded-full">
-                                                <PackageCheck size={14} className="text-accent-emerald" />
-                                                <span className="text-xs font-bold text-accent-emerald">{group.available} Ready</span>
-                                            </div>
-                                        </td>
-                                        <td className="px-8 py-5 text-right">
-                                            <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <Button
-                                                    size="sm"
-                                                    className="h-8 px-3 gap-1 bg-accent-emerald text-white hover:bg-accent-emerald/90 shadow-sm"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        resetForm();
-                                                        setFormData(prev => ({ ...prev, name: group.name, category: group.category, barcode: '' }));
-                                                        setEditingItem(null);
-                                                        setIsModalOpen(true);
-                                                    }}
-                                                >
-                                                    <Plus size={14} />
-                                                    Tambah Unit
-                                                </Button>
-                                                <Button size="sm" variant="ghost" className="h-8" onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setExpandedGroup(expandedGroup === group.name ? null : group.name);
-                                                }}>
-                                                    Detail
-                                                </Button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                    {expandedGroup === group.name && (
-                                        <tr>
-                                            <td colSpan={5} className="bg-slate-50 px-8 pb-6 pt-0">
-                                                <div className="pl-6 border-l-2 border-slate-200">
-                                                    <table className="w-full text-sm">
-                                                        <thead className="text-[10px] uppercase text-slate-400 font-bold border-b border-slate-200/50">
-                                                            <tr>
-                                                                <th className="py-2 text-left">Barcode</th>
-                                                                <th className="py-2 text-left">Status Saat Ini</th>
-                                                                <th className="py-2 text-right">Aksi</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody className="divide-y divide-slate-200/50">
-                                                            {group.items.map((item: any) => (
-                                                                <tr key={item.id} className="hover:bg-slate-100/50">
-                                                                    <td className="py-3 font-mono text-slate-600">{item.barcode}</td>
-                                                                    <td className="py-3">
-                                                                        <div className="flex flex-col gap-1">
-                                                                            <span className={cn(
-                                                                                "px-2 py-0.5 rounded text-[10px] font-bold uppercase w-fit",
-                                                                                item.status === 'sterile' ? "bg-accent-emerald/10 text-accent-emerald" : "bg-slate-100 text-slate-500"
-                                                                            )}>
-                                                                                {item.status}
-                                                                            </span>
-                                                                            {item.is_validated === false && (
-                                                                                <span className="px-2 py-0.5 rounded text-[8px] font-black uppercase w-fit bg-accent-amber/20 text-accent-amber border border-accent-amber/10 animate-pulse">
-                                                                                    Belum Tervalidasi
-                                                                                </span>
-                                                                            )}
-                                                                        </div>
-                                                                    </td>
-                                                                    <td className="py-3 text-right flex justify-end gap-2">
-                                                                        <button
-                                                                            onClick={(e) => {
-                                                                                e.stopPropagation();
-                                                                                setEditingItem(item);
-                                                                                setFormData({
-                                                                                    name: item.name,
-                                                                                    barcode: item.barcode,
-                                                                                    category: item.category,
-                                                                                    quantity: 1,
-                                                                                    employeeId: '',
-                                                                                    department: MASTER_DATA.DEPARTMENTS[0],
-                                                                                    role: MASTER_DATA.ROLES[0],
-                                                                                    username: '',
-                                                                                    type: 'washer',
-                                                                                    picId: '',
-                                                                                    default_sterilization_method: item.default_sterilization_method || MASTER_DATA.STERILIZATION_PROGRAMS[0].name
-                                                                                });
-                                                                                setIsModalOpen(true);
-                                                                            }}
-                                                                            className="p-1.5 text-slate-400 hover:text-accent-indigo hover:bg-accent-indigo/10 rounded transition-colors"
-                                                                            title="Edit Item"
-                                                                        >
-                                                                            <Edit2 size={14} />
-                                                                        </button>
-                                                                        <button
-                                                                            type="button"
-                                                                            onClick={(e) => {
-                                                                                e.preventDefault();
-                                                                                e.stopPropagation();
-                                                                                setDeleteConfirm({
-                                                                                    show: true,
-                                                                                    id: item.id,
-                                                                                    name: `${item.name} (${item.barcode})`,
-                                                                                    type: 'inventory'
-                                                                                });
-                                                                            }}
-                                                                            className="p-1.5 text-slate-400 hover:text-accent-rose hover:bg-accent-rose/10 rounded transition-colors"
-                                                                            title="Arsipkan Item"
-                                                                        >
-                                                                            <Trash2 size={14} />
-                                                                        </button>
-                                                                    </td>
-                                                                </tr>
-                                                            ))}
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-                                            </td>
-                                        </tr >
-                                    )}
-                                </>
-                            ))}
+                            {activeTab === 'inventory' && (
+                                <InventoryTab
+                                    inventory={inventory || []}
+                                    searchQuery={searchQuery}
+                                    currentPage={currentPage}
+                                    itemsPerPage={itemsPerPage}
+                                    expandedGroup={expandedGroup}
+                                    setExpandedGroup={setExpandedGroup}
+                                    onAddUnit={(groupName, category) => {
+                                        resetForm();
+                                        setFormData(prev => ({ ...prev, name: groupName, category: category, barcode: '' }));
+                                        setEditingItem(null);
+                                        setIsModalOpen(true);
+                                    }}
+                                    onEditItem={(item) => {
+                                        setEditingItem(item);
+                                        setFormData({
+                                            name: item.name,
+                                            barcode: item.barcode,
+                                            category: item.category,
+                                            quantity: 1,
+                                            employeeId: '',
+                                            department: MASTER_DATA.DEPARTMENTS[0],
+                                            role: MASTER_DATA.ROLES[0],
+                                            username: '',
+                                            type: 'washer',
+                                            picId: '',
+                                            default_sterilization_method: item.default_sterilization_method || MASTER_DATA.STERILIZATION_PROGRAMS[0].name
+                                        });
+                                        setIsModalOpen(true);
+                                    }}
+                                    onDeleteItem={(id, name) => {
+                                        setDeleteConfirm({
+                                            show: true,
+                                            id: id,
+                                            name: name,
+                                            type: 'inventory'
+                                        });
+                                    }}
+                                />
+                            )}
 
-                            {activeTab === 'machines' && filteredMachines.slice(currentPage * itemsPerPage, (currentPage + 1) * itemsPerPage).map(item => (
-                                <tr key={item.id} className="group hover:bg-slate-50/50 transition-colors">
-                                    <td className="px-8 py-5 font-bold text-slate-900">{item.name}</td>
-                                    <td className="px-8 py-5 text-sm text-slate-600 uppercase tracking-wider font-bold">{item.type}</td>
-                                    <td className="px-8 py-5">
-                                        <div className="flex items-center gap-2">
-                                            <div className={cn(
-                                                "w-2 h-2 rounded-full",
-                                                item.status === 'idle' ? "bg-accent-emerald" : "bg-accent-amber"
-                                            )}></div>
-                                            <span className="text-xs font-bold text-slate-700 capitalize">{item.status}</span>
-                                        </div>
-                                    </td>
-                                    <td className="px-8 py-5 text-sm text-slate-500">
-                                        {item.lastService ? new Date(item.lastService).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
-                                    </td>
-                                    <td className="px-8 py-5 text-right flex justify-end gap-2">
-                                        <button
-                                            onClick={() => {
-                                                setEditingItem(item);
-                                                setFormData({
-                                                    name: item.name,
-                                                    barcode: '',
-                                                    category: MASTER_DATA.CATEGORIES[0],
-                                                    quantity: 1,
-                                                    employeeId: '',
-                                                    department: MASTER_DATA.DEPARTMENTS[0],
-                                                    role: MASTER_DATA.ROLES[0],
-                                                    username: '',
-                                                    type: item.type as any,
-                                                    picId: '',
-                                                    default_sterilization_method: (item as any).default_sterilization_method || MASTER_DATA.STERILIZATION_PROGRAMS[0].name
-                                                });
-                                                setIsModalOpen(true);
-                                            }}
-                                            className="p-1.5 text-slate-400 hover:text-accent-indigo hover:bg-accent-indigo/10 rounded transition-colors"
-                                            title="Edit Mesin"
-                                        >
-                                            <Edit2 size={16} />
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={(e) => {
-                                                e.preventDefault();
-                                                e.stopPropagation();
-                                                setDeleteConfirm({
-                                                    show: true,
-                                                    id: item.id,
-                                                    name: item.name,
-                                                    type: 'machine'
-                                                });
-                                            }}
-                                            className="p-1.5 text-slate-400 hover:text-accent-rose hover:bg-accent-rose/10 rounded transition-colors"
-                                            title="Arsipkan Mesin"
-                                        >
-                                            <Trash2 size={16} />
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))}
-                            {activeTab === 'rooms' && filteredRooms.slice(currentPage * itemsPerPage, (currentPage + 1) * itemsPerPage).map(item => (
-                                <tr key={item.id} className="group hover:bg-slate-50/50 transition-colors">
-                                    <td className="px-8 py-5 font-bold text-slate-900">{item.name}</td>
-                                    <td className="px-8 py-5">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-full bg-accent-emerald/10 text-accent-emerald flex items-center justify-center font-bold text-xs uppercase">
-                                                {item.picName?.charAt(0) || '?'}
-                                            </div>
-                                            <div>
-                                                <p className="font-bold text-slate-900">{item.picName || 'No PIC'}</p>
-                                                <p className="text-[10px] text-slate-400 uppercase font-bold tracking-widest">Penanggung Jawab</p>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td className="px-8 py-5 text-sm text-slate-500">
-                                        {item.createdAt ? new Date(item.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
-                                    </td>
-                                    <td className="px-8 py-5 text-right flex justify-end gap-2">
-                                        <button
-                                            onClick={() => {
-                                                setEditingItem(item);
-                                                setFormData({
-                                                    name: item.name,
-                                                    barcode: '',
-                                                    category: MASTER_DATA.CATEGORIES[0],
-                                                    quantity: 1,
-                                                    employeeId: '',
-                                                    department: MASTER_DATA.DEPARTMENTS[0],
-                                                    role: MASTER_DATA.ROLES[0],
-                                                    username: '',
-                                                    type: 'washer',
-                                                    picId: item.picId,
-                                                    default_sterilization_method: (item as any).default_sterilization_method || MASTER_DATA.STERILIZATION_PROGRAMS[0].name
-                                                });
-                                                setIsModalOpen(true);
-                                            }}
-                                            className="p-1.5 text-slate-400 hover:text-accent-indigo hover:bg-accent-indigo/10 rounded transition-colors"
-                                            title="Edit Ruangan"
-                                        >
-                                            <Edit2 size={16} />
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={(e) => {
-                                                e.preventDefault();
-                                                e.stopPropagation();
-                                                setDeleteConfirm({
-                                                    show: true,
-                                                    id: item.id,
-                                                    name: item.name,
-                                                    type: 'room'
-                                                });
-                                            }}
-                                            className="p-1.5 text-slate-400 hover:text-accent-rose hover:bg-accent-rose/10 rounded transition-colors"
-                                            title="Arsipkan Ruangan"
-                                        >
-                                            <Trash2 size={16} />
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))}
+                            {activeTab === 'machines' && (
+                                <MachineTab
+                                    machines={machines || []}
+                                    searchQuery={searchQuery}
+                                    currentPage={currentPage}
+                                    itemsPerPage={itemsPerPage}
+                                    onEdit={(item) => {
+                                        setEditingItem(item);
+                                        setFormData({
+                                            name: item.name,
+                                            barcode: '',
+                                            category: MASTER_DATA.CATEGORIES[0],
+                                            quantity: 1,
+                                            employeeId: '',
+                                            department: MASTER_DATA.DEPARTMENTS[0],
+                                            role: MASTER_DATA.ROLES[0],
+                                            username: '',
+                                            type: item.type as any,
+                                            picId: '',
+                                            default_sterilization_method: (item as any).default_sterilization_method || MASTER_DATA.STERILIZATION_PROGRAMS[0].name
+                                        });
+                                        setIsModalOpen(true);
+                                    }}
+                                    onDelete={(id, name) => {
+                                        setDeleteConfirm({
+                                            show: true,
+                                            id: id,
+                                            name: name,
+                                            type: 'machine'
+                                        });
+                                    }}
+                                />
+                            )}
+
+                            {activeTab === 'rooms' && (
+                                <RoomTab
+                                    rooms={rooms || []}
+                                    searchQuery={searchQuery}
+                                    currentPage={currentPage}
+                                    itemsPerPage={itemsPerPage}
+                                    onEdit={(item) => {
+                                        setEditingItem(item);
+                                        setFormData({
+                                            name: item.name,
+                                            barcode: '',
+                                            category: MASTER_DATA.CATEGORIES[0],
+                                            quantity: 1,
+                                            employeeId: '',
+                                            department: MASTER_DATA.DEPARTMENTS[0],
+                                            role: MASTER_DATA.ROLES[0],
+                                            username: '',
+                                            type: 'washer',
+                                            picId: item.picId,
+                                            default_sterilization_method: MASTER_DATA.STERILIZATION_PROGRAMS[0].name
+                                        });
+                                        setIsModalOpen(true);
+                                    }}
+                                    onDelete={(id, name) => {
+                                        setDeleteConfirm({
+                                            show: true,
+                                            id: id,
+                                            name: name,
+                                            type: 'room'
+                                        });
+                                    }}
+                                />
+                            )}
                         </tbody>
                     </table>
                 </div >
@@ -866,11 +650,22 @@ export const MasterDataPage = () => {
                 {/* Pagination Controls */}
                 {
                     (() => {
-                        const dataSize = activeTab === 'staff' ? filteredStaff.length :
-                            activeTab === 'inventory' ? filteredInventoryGroups.length :
-                                activeTab === 'machines' ? filteredMachines.length :
-                                    filteredRooms.length;
+                        const dataSize = (() => {
+                            const lq = lowerQuery;
+                            if (activeTab === 'staff') return (staff || []).filter(s => (s.name || '').toLowerCase().includes(lq) || (s.employeeId || '').toLowerCase().includes(lq)).length;
+                            if (activeTab === 'inventory') {
+                                const grouped = (inventory || []).reduce((acc, item) => {
+                                    if (!acc[item.name]) acc[item.name] = item;
+                                    return acc;
+                                }, {} as any);
+                                return Object.values(grouped).filter((g: any) => (g.name || '').toLowerCase().includes(lq) || (g.category || '').toLowerCase().includes(lq)).length;
+                            }
+                            if (activeTab === 'machines') return (machines || []).filter(m => (m.name || '').toLowerCase().includes(lq) || (m.type || '').toLowerCase().includes(lq)).length;
+                            if (activeTab === 'rooms') return (rooms || []).filter(r => (r.name || '').toLowerCase().includes(lq) || (r.picName || '').toLowerCase().includes(lq)).length;
+                            return 0;
+                        })();
                         const totalPages = Math.ceil((dataSize || 0) / itemsPerPage);
+
 
                         if (totalPages <= 1) return null;
 

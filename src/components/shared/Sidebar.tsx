@@ -42,6 +42,7 @@ const MENU_SECTIONS = [
             { icon: Waves, label: 'Pencucian', path: '/washing' },
             { icon: Box, label: 'Pengepakan', path: '/packing' },
             { icon: Settings, label: 'Sterilisasi', path: '/sterilizing' },
+            { icon: ClipboardCheck, label: 'Pasca Sterilisasi', path: '/post-sterilization' },
             { icon: ClipboardCheck, label: 'Penyimpanan', path: '/storage' },
             { icon: Truck, label: 'Distribusi', path: '/distribution' },
         ]
@@ -54,6 +55,8 @@ const MENU_SECTIONS = [
             { icon: Send, label: 'Kirim Alat Kotor', path: '/ward/send' },
             { icon: ClipboardCheck, label: 'Terima Distribusi', path: '/ward/receive' },
             { icon: ListTodo, label: 'Permintaan Alat', path: '/ward/request' },
+            { icon: PackageSearch, label: 'Entri Jadwal Operasi', path: '/ward/schedule/entry' },
+            { icon: LayoutDashboard, label: 'Dashboard Jadwal', path: '/schedule/dashboard' },
         ]
     },
     {
